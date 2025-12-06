@@ -11,25 +11,28 @@
 # Basic GET Requests
 ###############################################################################
 
-### GET root - Basic request
+### GET root - Basic request (200 OK)
+# This is the only defined route - should return the greeting message
 GET {{baseUrl}}/
 Accept: text/plain
 
-### GET root - With custom header
+### GET root - With custom header (200 OK)
 GET {{baseUrl}}/
 Accept: text/plain
 X-Custom-Header: TestValue
 User-Agent: VSCode-REST-Client
 
-### GET any path - All paths return same response
+### GET undefined route - Returns 404
+# Express returns 404 for routes that aren't defined
+# Expected response: {"error": "Not Found"}
 GET {{baseUrl}}/api/test
-Accept: text/plain
 
 ###############################################################################
-# POST Requests
+# POST Requests (All return 404 - no POST routes defined)
 ###############################################################################
 
-### POST root - JSON payload
+### POST root - JSON payload (404)
+# Only GET / is defined, so POST returns 404
 POST {{baseUrl}}/
 Content-Type: application/json
 
@@ -38,23 +41,29 @@ Content-Type: application/json
   "timestamp": "2025-12-04T00:00:00Z"
 }
 
-### POST root - Form data
+### POST root - Form data (404)
+# Body will be parsed by express.urlencoded() middleware
+# But route isn't defined, so returns 404
 POST {{baseUrl}}/
 Content-Type: application/x-www-form-urlencoded
 
 name=test&value=123
 
-### POST root - Plain text
-POST {{baseUrl}}/
-Content-Type: text/plain
+### POST to API endpoint - JSON payload (404)
+# Example of what a future API route might look like
+POST {{baseUrl}}/api/users
+Content-Type: application/json
 
-This is plain text data
+{
+  "name": "John Doe",
+  "email": "john@example.com"
+}
 
 ###############################################################################
-# Other HTTP Methods
+# Other HTTP Methods (All return 404 - no routes defined)
 ###############################################################################
 
-### PUT request
+### PUT request (404)
 PUT {{baseUrl}}/resource
 Content-Type: application/json
 
@@ -63,10 +72,10 @@ Content-Type: application/json
   "updated": true
 }
 
-### DELETE request
+### DELETE request (404)
 DELETE {{baseUrl}}/resource/1
 
-### PATCH request
+### PATCH request (404)
 PATCH {{baseUrl}}/resource/1
 Content-Type: application/json
 
@@ -75,14 +84,17 @@ Content-Type: application/json
 }
 
 ###############################################################################
-# Error & Edge Cases
+# Edge Cases
 ###############################################################################
 
-### GET with Accept: application/json (server returns text/plain)
+### GET with Accept: application/json
+# Express res.send() will auto-detect content type
 GET {{baseUrl}}/
 Accept: application/json
 
-### Large payload POST
+### Large payload POST (404)
+# Middleware will parse the JSON body successfully
+# But route isn't defined, so returns 404
 POST {{baseUrl}}/
 Content-Type: application/json
 
@@ -97,3 +109,35 @@ Content-Type: application/json
     }
   }
 }
+
+###############################################################################
+# Examples: Add Your Own Routes
+###############################################################################
+# Uncomment and modify these after adding corresponding routes to src/index.ts
+
+# ### GET users list
+# GET {{baseUrl}}/api/users
+
+# ### GET single user
+# GET {{baseUrl}}/api/users/1
+
+# ### POST create user
+# POST {{baseUrl}}/api/users
+# Content-Type: application/json
+#
+# {
+#   "name": "Jane Smith",
+#   "email": "jane@example.com"
+# }
+
+# ### PUT update user
+# PUT {{baseUrl}}/api/users/1
+# Content-Type: application/json
+#
+# {
+#   "name": "Jane Doe",
+#   "email": "jane.doe@example.com"
+# }
+
+# ### DELETE user
+# DELETE {{baseUrl}}/api/users/1
