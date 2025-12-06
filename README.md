@@ -21,6 +21,34 @@ A production-ready Node.js project template with TypeScript and Express.js suppo
 - 📝 **Built-in Logger** - Custom logger with timestamps and log levels
 - 🛡️ **Error Handling** - Built-in 404 handler and error management
 
+## Quick Start
+
+Get up and running in 60 seconds:
+
+```bash
+# 1. Clone or download this template
+git clone <your-repo-url>
+cd node-ts-express-template
+
+# 2. Install dependencies
+npm install
+
+# 3. Start the development server
+npm run dev
+
+# 4. Test the API
+curl http://localhost:3000
+# Response: Hello, TypeScript Node.js World!
+```
+
+The server will start on `http://localhost:3000` with hot reload enabled. Make changes to your code and the server will automatically restart.
+
+**Next Steps:**
+- Add your routes in `src/index.ts`
+- Configure environment variables in `.env`
+- Run tests with `npm test`
+- Build for production with `npm run build`
+
 ## Project Structure
 
 ```
@@ -186,6 +214,507 @@ app.get("/protected", authMiddleware, (req, res) => {
 })
 ```
 
+### Error Handling
+
+Express provides powerful error handling capabilities. The template includes a basic 404 handler, but you can add more sophisticated error handling.
+
+#### Global Error Handler
+
+Add a global error handler to catch all errors (must be added AFTER all routes and middleware):
+
+```typescript
+// Error handling middleware (add before the 404 handler)
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  logger.error(`Error: ${err.message}`)
+  logger.error(err.stack || "")
+
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: process.env.NODE_ENV === "development" ? err.message : undefined
+  })
+})
+
+// 404 handler (must be last)
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not Found" })
+})
+```
+
+#### Async Error Handling
+
+For async route handlers, wrap them in a try-catch or use a wrapper function:
+
+**Option 1: Try-Catch**
+
+```typescript
+app.get("/api/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await getUserById(req.params.id)
+    if (!user) {
+      return res.status(404).json({ error: "User not found" })
+    }
+    res.json(user)
+  } catch (error) {
+    next(error) // Pass to error handler
+  }
+})
+```
+
+**Option 2: Async Wrapper**
+
+```typescript
+// Helper function
+const asyncHandler = (fn: Function) => (req: Request, res: Response, next: NextFunction) => {
+  Promise.resolve(fn(req, res, next)).catch(next)
+}
+
+// Usage
+app.get("/api/users/:id", asyncHandler(async (req: Request, res: Response) => {
+  const user = await getUserById(req.params.id)
+  if (!user) {
+    return res.status(404).json({ error: "User not found" })
+  }
+  res.json(user)
+}))
+```
+
+#### Custom Error Classes
+
+Create custom error classes for better error handling:
+
+```typescript
+// src/lib/errors.ts
+export class AppError extends Error {
+  constructor(
+    public statusCode: number,
+    public message: string,
+    public isOperational = true
+  ) {
+    super(message)
+    Object.setPrototypeOf(this, AppError.prototype)
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(message = "Resource not found") {
+    super(404, message)
+  }
+}
+
+export class ValidationError extends AppError {
+  constructor(message = "Validation failed") {
+    super(400, message)
+  }
+}
+
+// Usage in routes
+import { NotFoundError } from "@/lib/errors"
+
+app.get("/api/users/:id", async (req, res, next) => {
+  try {
+    const user = await getUserById(req.params.id)
+    if (!user) {
+      throw new NotFoundError("User not found")
+    }
+    res.json(user)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Error handler
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({
+      error: err.message
+    })
+  }
+
+  logger.error(`Unexpected error: ${err.message}`)
+  res.status(500).json({ error: "Internal Server Error" })
+})
+```
+
+### Common Express Patterns
+
+#### Request Validation
+
+Validate incoming request data to ensure data integrity:
+
+```typescript
+import { z } from "zod"
+
+// Define validation schema
+const CreateUserSchema = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email(),
+  age: z.number().int().min(18).optional()
+})
+
+// Validation middleware
+const validateBody = (schema: z.ZodSchema) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      req.body = schema.parse(req.body)
+      next()
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Validation failed",
+          details: error.errors
+        })
+      }
+      next(error)
+    }
+  }
+}
+
+// Usage
+app.post("/api/users", validateBody(CreateUserSchema), (req, res) => {
+  // req.body is now typed and validated
+  const { name, email, age } = req.body
+  res.status(201).json({ message: "User created", data: { name, email, age } })
+})
+```
+
+#### Structured Responses
+
+Create consistent API response formats:
+
+```typescript
+// src/lib/response.ts
+export const successResponse = <T>(data: T, message?: string) => ({
+  success: true,
+  message,
+  data
+})
+
+export const errorResponse = (message: string, errors?: unknown) => ({
+  success: false,
+  message,
+  errors
+})
+
+// Usage in routes
+import { successResponse, errorResponse } from "@/lib/response"
+
+app.get("/api/users", async (req, res) => {
+  const users = await getUsers()
+  res.json(successResponse(users, "Users retrieved successfully"))
+})
+
+app.post("/api/users", async (req, res) => {
+  try {
+    const user = await createUser(req.body)
+    res.status(201).json(successResponse(user, "User created"))
+  } catch (error) {
+    res.status(400).json(errorResponse("Failed to create user", error))
+  }
+})
+```
+
+#### Controller Pattern
+
+Separate route handlers from routing logic:
+
+```typescript
+// src/controllers/user.controller.ts
+import type { Request, Response, NextFunction } from "express"
+
+export class UserController {
+  async getAll(req: Request, res: Response, next: NextFunction) {
+    try {
+      const users = await getUsers()
+      res.json(successResponse(users))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async getById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await getUserById(req.params.id)
+      if (!user) {
+        throw new NotFoundError("User not found")
+      }
+      res.json(successResponse(user))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async create(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await createUser(req.body)
+      res.status(201).json(successResponse(user, "User created"))
+    } catch (error) {
+      next(error)
+    }
+  }
+}
+
+// src/routes/user.routes.ts
+import { Router } from "express"
+import { UserController } from "@/controllers/user.controller"
+
+const router = Router()
+const userController = new UserController()
+
+router.get("/", userController.getAll)
+router.get("/:id", userController.getById)
+router.post("/", userController.create)
+
+export default router
+
+// src/index.ts
+import userRoutes from "@/routes/user.routes"
+app.use("/api/users", userRoutes)
+```
+
+#### Request Logging
+
+Log all incoming requests for debugging and monitoring:
+
+```typescript
+import { logger } from "@/lib/logger"
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now()
+
+  // Log when response finishes
+  res.on("finish", () => {
+    const duration = Date.now() - start
+    logger.info(
+      `${req.method} ${req.path} ${res.statusCode} - ${duration}ms`
+    )
+  })
+
+  next()
+})
+```
+
+#### Pagination
+
+Implement pagination for large datasets:
+
+```typescript
+// Pagination helper
+const paginate = (page = 1, limit = 10) => {
+  const offset = (page - 1) * limit
+  return { limit, offset }
+}
+
+app.get("/api/users", async (req, res) => {
+  const page = parseInt(req.query.page as string) || 1
+  const limit = parseInt(req.query.limit as string) || 10
+
+  const { limit: paginationLimit, offset } = paginate(page, limit)
+
+  const users = await getUsers(paginationLimit, offset)
+  const total = await getUserCount()
+
+  res.json({
+    data: users,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
+  })
+})
+```
+
+### Express Best Practices
+
+#### Security Headers
+
+Add security headers to protect against common vulnerabilities:
+
+```bash
+# Install helmet for security headers
+npm install helmet
+npm install --save-dev @types/helmet
+```
+
+```typescript
+import helmet from "helmet"
+
+// Add security headers
+app.use(helmet())
+
+// Or customize specific headers
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"]
+      }
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true
+    }
+  })
+)
+```
+
+#### CORS Configuration
+
+Enable Cross-Origin Resource Sharing for API access:
+
+```bash
+npm install cors
+npm install --save-dev @types/cors
+```
+
+```typescript
+import cors from "cors"
+
+// Allow all origins (development only)
+app.use(cors())
+
+// Production configuration
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(",") || "http://localhost:3000",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
+)
+```
+
+#### Rate Limiting
+
+Protect your API from abuse with rate limiting:
+
+```bash
+npm install express-rate-limit
+```
+
+```typescript
+import rateLimit from "express-rate-limit"
+
+// Global rate limiter
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false
+})
+
+app.use(limiter)
+
+// Stricter limit for specific routes
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 attempts per hour
+  message: "Too many login attempts, please try again later."
+})
+
+app.post("/api/auth/login", authLimiter, (req, res) => {
+  // Login logic
+})
+```
+
+#### Request Body Size Limits
+
+Prevent denial of service attacks by limiting request body size:
+
+```typescript
+import express from "express"
+
+app.use(express.json({ limit: "10mb" })) // Limit JSON payloads
+app.use(express.urlencoded({ extended: true, limit: "10mb" })) // Limit URL-encoded
+```
+
+#### Input Sanitization
+
+Sanitize user input to prevent injection attacks:
+
+```bash
+npm install express-mongo-sanitize
+npm install express-validator
+```
+
+```typescript
+import mongoSanitize from "express-mongo-sanitize"
+import { body, validationResult } from "express-validator"
+
+// Prevent MongoDB injection
+app.use(mongoSanitize())
+
+// Validate and sanitize inputs
+app.post(
+  "/api/users",
+  [
+    body("email").isEmail().normalizeEmail(),
+    body("name").trim().escape(),
+    body("age").optional().isInt({ min: 0, max: 150 })
+  ],
+  (req, res) => {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+    // Process validated data
+  }
+)
+```
+
+#### Environment-Based Configuration
+
+Use different settings for different environments:
+
+```typescript
+// src/config/app.ts
+export const config = {
+  isDevelopment: process.env.NODE_ENV === "development",
+  isProduction: process.env.NODE_ENV === "production",
+  isTest: process.env.NODE_ENV === "test",
+
+  server: {
+    port: process.env.PORT || 3000,
+    host: process.env.HOST || "localhost"
+  },
+
+  security: {
+    enableCors: process.env.ENABLE_CORS === "true",
+    rateLimitEnabled: process.env.RATE_LIMIT_ENABLED !== "false"
+  }
+}
+
+// Usage
+import { config } from "@/config/app"
+
+if (config.security.enableCors) {
+  app.use(cors())
+}
+
+if (config.security.rateLimitEnabled) {
+  app.use(limiter)
+}
+```
+
+#### Health Check Endpoint
+
+Add a health check endpoint for monitoring:
+
+```typescript
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV
+  })
+})
+```
+
 ### Building
 
 Compile TypeScript to JavaScript:
@@ -343,7 +872,7 @@ describe("API Tests", () => {
 
 ### Manual API Testing
 
-This project includes configuration for manual API testing using two popular VS Code extensions:
+This project includes configuration for manual API testing using the VS Code REST Client extension.
 
 #### VS Code REST Client
 
@@ -361,15 +890,34 @@ REST Client requests are available in [tests/rest/requests.http](tests/rest/requ
 - Multiple requests in a single file
 - Inline response viewing
 
-See the comments in [tests/rest/requests.http](tests/rest/requests.http) for detailed usage instructions.
+#### Understanding Expected Responses
+
+The template uses **Express routing**, which means routes must be explicitly defined. By default, only `GET /` is configured:
+
+**Will Return 200 OK:**
+- `GET /` - Returns the greeting message
+
+**Will Return 404 Not Found:**
+- Any POST, PUT, DELETE, PATCH requests
+- Any GET requests to undefined routes (e.g., `/api/test`, `/users`)
+- Response format: `{"error": "Not Found"}`
+
+This is **expected Express behavior**. Unlike the previous native HTTP server that responded to all routes, Express only responds to routes you explicitly define.
+
+**To add new routes:**
+1. Define them in `src/index.ts` or create route modules
+2. Update the requests.http file with your new endpoints
+3. Test your new routes using the REST Client
+
+See the comments in [tests/rest/requests.http](tests/rest/requests.http) for detailed usage instructions and example route templates you can uncomment after implementing them.
 
 #### Available Test Requests
 
-Both tools include the same set of test requests:
-- **Basic GET Requests** - Simple GET with various headers
-- **POST Requests** - JSON, form data, and plain text payloads
-- **Other HTTP Methods** - PUT, DELETE, PATCH requests
-- **Error & Edge Cases** - Content type mismatches and large payloads
+The requests file includes:
+- **Basic GET Requests** - Test the root route and observe 404 for undefined routes
+- **POST Requests** - Examples that return 404 (add your own routes to make them work)
+- **Other HTTP Methods** - PUT, DELETE, PATCH examples (currently return 404)
+- **Example Templates** - Commented examples for common API endpoints you might add
 
 ## Recommended VS Code Extensions
 
@@ -401,6 +949,52 @@ The `tsconfig.json` is configured with:
 - Strict type checking enabled
 - Source maps for debugging
 - Declaration files generation
+
+#### Path Aliases
+
+This template uses TypeScript path aliases to simplify imports and avoid relative path hell:
+
+**Configuration** (`tsconfig.json`):
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}
+```
+
+**Usage:**
+
+```typescript
+// ❌ Before: Relative imports
+import { logger } from "../../../lib/logger"
+import { GREETING } from "../../../lib/constants"
+import { app } from "../../index"
+
+// ✅ After: Clean path aliases
+import { logger } from "@/lib/logger"
+import { GREETING } from "@/lib/constants"
+import { app } from "@/index"
+```
+
+**Benefits:**
+- **Cleaner code** - No more `../../..` chains
+- **Easier refactoring** - Moving files doesn't break imports
+- **Better readability** - Clear what's from your source vs node_modules
+- **IDE support** - Full autocomplete and go-to-definition
+
+**Build Support:**
+
+The template uses `tsc-alias` to resolve path aliases during the build process:
+
+```bash
+npm run build  # Compiles and resolves @/* aliases
+```
+
+Both `ts-node` (development) and `tsc-alias` (production) handle the path resolution automatically.
 
 ### Environment Variables
 
