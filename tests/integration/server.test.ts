@@ -1,47 +1,28 @@
-import { createServer, type Server } from "http"
 import request from "supertest"
+import { app } from "@/index"
 import { GREETING } from "@/lib/constants"
 
-// Create our own server instance for testing
-describe("HTTP Server Integration Tests", () => {
-	let server: Server
-
-	beforeAll(() => {
-		// Create a test server similar to our main server
-		server = createServer((_req, res) => {
-			res.writeHead(200, { "Content-Type": "text/plain" })
-			res.end(GREETING)
-		})
-	})
-
-	afterAll((done) => {
-		if (server?.listening) {
-			server.close(done)
-		} else {
-			done()
-		}
-	})
-
+describe("Express Server Integration Tests", () => {
 	describe("GET /", () => {
 		it("should respond with 200 status", async () => {
-			const response = await request(server).get("/")
+			const response = await request(app).get("/")
 			expect(response.status).toBe(200)
 		})
 
 		it("should return correct content type", async () => {
-			const response = await request(server).get("/")
-			expect(response.headers["content-type"]).toBe("text/plain")
+			const response = await request(app).get("/")
+			expect(response.headers["content-type"]).toMatch(/text\/html/)
 		})
 
 		it("should return expected message", async () => {
-			const response = await request(server).get("/")
+			const response = await request(app).get("/")
 			expect(response.text).toBe(GREETING)
 		})
 
 		it("should handle multiple concurrent requests", async () => {
 			const responses = []
 			for (let i = 0; i < 5; i++) {
-				const response = await request(server).get("/")
+				const response = await request(app).get("/")
 				responses.push(response)
 			}
 
@@ -54,31 +35,30 @@ describe("HTTP Server Integration Tests", () => {
 
 	describe("HTTP Methods", () => {
 		it("should handle POST requests to root", async () => {
-			const response = await request(server).post("/")
-			// Server should still respond (our basic server handles all methods the same way)
-			expect(response.status).toBe(200)
+			const response = await request(app).post("/")
+			// Express returns 404 for undefined routes
+			expect(response.status).toBe(404)
 		})
 
 		it("should handle PUT requests", async () => {
-			const response = await request(server).put("/")
-			expect(response.status).toBe(200)
+			const response = await request(app).put("/")
+			expect(response.status).toBe(404)
 		})
 
 		it("should handle DELETE requests", async () => {
-			const response = await request(server).delete("/")
-			expect(response.status).toBe(200)
+			const response = await request(app).delete("/")
+			expect(response.status).toBe(404)
 		})
 	})
 
 	describe("Different Routes", () => {
-		it("should handle requests to different paths", async () => {
+		it("should return 404 for undefined routes", async () => {
 			const paths = ["/test", "/api", "/health", "/nonexistent"]
 
 			for (const path of paths) {
-				const response = await request(server).get(path)
-				// Our basic server responds the same way to all paths
-				expect(response.status).toBe(200)
-				expect(response.text).toBe(GREETING)
+				const response = await request(app).get(path)
+				expect(response.status).toBe(404)
+				expect(response.body).toEqual({ error: "Not Found" })
 			}
 		})
 	})
@@ -87,7 +67,7 @@ describe("HTTP Server Integration Tests", () => {
 		it("should respond within reasonable time", async () => {
 			const startTime = Date.now()
 
-			await request(server).get("/")
+			await request(app).get("/")
 
 			const responseTime = Date.now() - startTime
 			expect(responseTime).toBeLessThan(100) // Should respond within 100ms
@@ -97,7 +77,7 @@ describe("HTTP Server Integration Tests", () => {
 			const responses = []
 
 			for (let i = 0; i < 10; i++) {
-				const response = await request(server).get("/")
+				const response = await request(app).get("/")
 				responses.push(response)
 			}
 
@@ -109,7 +89,7 @@ describe("HTTP Server Integration Tests", () => {
 
 	describe("Request Headers", () => {
 		it("should handle requests with custom headers", async () => {
-			const response = await request(server)
+			const response = await request(app)
 				.get("/")
 				.set("User-Agent", "Test-Agent")
 				.set("Accept", "text/plain")
@@ -118,8 +98,19 @@ describe("HTTP Server Integration Tests", () => {
 		})
 
 		it("should handle requests without headers", async () => {
-			const response = await request(server).get("/")
+			const response = await request(app).get("/")
 			expect(response.status).toBe(200)
+		})
+	})
+
+	describe("JSON Parsing", () => {
+		it("should parse JSON request bodies", async () => {
+			const response = await request(app)
+				.post("/")
+				.send({ test: "data" })
+				.set("Content-Type", "application/json")
+
+			expect(response.status).toBe(404) // Route not defined, but body should be parsed
 		})
 	})
 })

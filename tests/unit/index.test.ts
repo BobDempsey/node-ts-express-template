@@ -78,7 +78,7 @@ describe("index.ts - Server Instance", () => {
 
 			expect(response.status).toBe(200)
 			expect(response.text).toBe(GREETING)
-			expect(response.headers["content-type"]).toBe("text/plain")
+			expect(response.headers["content-type"]).toMatch(/text\/html/)
 		})
 	})
 
@@ -175,7 +175,7 @@ describe("index.ts - Server Instance", () => {
 			server = indexModule.default
 			cleanup = indexModule.cleanup
 
-			const response = await request(server).get("/any-path")
+			const response = await request(server).get("/")
 
 			expect(response.text).toBe(GREETING)
 		})
@@ -188,7 +188,7 @@ describe("index.ts - Server Instance", () => {
 
 			const response = await request(server).get("/")
 
-			expect(response.headers["content-type"]).toBe("text/plain")
+			expect(response.headers["content-type"]).toMatch(/text\/html/)
 		})
 
 		it("should respond with 200 status code", async () => {

@@ -1,15 +1,32 @@
 import dotenv from "dotenv"
-import { createServer } from "http"
+import express, { type Request, type Response } from "express"
 import { GREETING } from "@/lib/constants"
 import env from "@/lib/env"
 import { logger } from "@/lib/logger"
 
 dotenv.config()
+
+const app = express()
 const PORT: number = env.PORT ?? 3000
 
-const server = createServer((_req, res) => {
-	res.writeHead(200, { "Content-Type": "text/plain" })
-	res.end(GREETING)
+// Middleware
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+
+// Routes
+app.get("/", (_req: Request, res: Response) => {
+	res.send(GREETING)
+})
+
+// 404 handler
+app.use((_req: Request, res: Response) => {
+	res.status(404).json({ error: "Not Found" })
+})
+
+// Start server
+const server = app.listen(PORT, () => {
+	logger.info(`🚀 Server is running on http://localhost:${PORT}`)
+	logger.info(`📁 Environment: ${env.NODE_ENV || "development"}`)
 })
 
 // Handle server errors
@@ -20,11 +37,6 @@ server.on("error", (err: NodeJS.ErrnoException) => {
 	}
 	logger.error(`❌ Server error: ${err.message}`)
 	process.exit(1)
-})
-
-server.listen(PORT, () => {
-	logger.info(`🚀 Server is running on http://localhost:${PORT}`)
-	logger.info(`📁 Environment: ${env.NODE_ENV || "development"}`)
 })
 
 // Graceful shutdown
@@ -43,4 +55,5 @@ export const cleanup = () => {
 	process.removeListener("SIGTERM", sigTermHandler)
 }
 
+export { app }
 export default server

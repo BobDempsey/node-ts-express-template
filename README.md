@@ -1,14 +1,15 @@
-# Node.js TypeScript Template
+# Node.js TypeScript Express Template
 
 [![Test](https://github.com/BobDempsey/node-ts-template/actions/workflows/test.yml/badge.svg)](https://github.com/BobDempsey/node-ts-template/actions/workflows/test.yml)
 [![Build](https://github.com/BobDempsey/node-ts-template/actions/workflows/build.yml/badge.svg)](https://github.com/BobDempsey/node-ts-template/actions/workflows/build.yml)
 [![Biome Lint and Format](https://github.com/BobDempsey/node-ts-template/actions/workflows/biome.yml/badge.svg)](https://github.com/BobDempsey/node-ts-template/actions/workflows/biome.yml)
 [![codecov](https://codecov.io/gh/BobDempsey/node-ts-template/branch/main/graph/badge.svg)](https://codecov.io/gh/BobDempsey/node-ts-template)
 
-A simple and clean Node.js project template with TypeScript support.
+A production-ready Node.js project template with TypeScript and Express.js support.
 
 ## Features
 
+- ⚡ **Express.js** - Fast, unopinionated web framework with TypeScript support
 - 🚀 **TypeScript** - Full TypeScript support with strict type checking
 - 🔄 **Hot Reload** - Automatic restart on file changes during development
 - 📦 **Modern Node.js** - Targets ES2020 and Node.js 24+
@@ -18,11 +19,12 @@ A simple and clean Node.js project template with TypeScript support.
 - 🎨 **Code Quality** - Biome for fast linting and formatting
 - 🪝 **Pre-commit Hooks** - Husky and lint-staged for automatic code quality checks
 - 📝 **Built-in Logger** - Custom logger with timestamps and log levels
+- 🛡️ **Error Handling** - Built-in 404 handler and error management
 
 ## Project Structure
 
 ```
-node-ts-template/
+node-ts-express-template/
 ├── .github/
 │   └── workflows/          # GitHub Actions CI/CD workflows
 │       ├── test.yml        # Test workflow with coverage
@@ -38,14 +40,15 @@ node-ts-template/
 │   │   ├── try-parse-env.ts # Zod environment parsing utility
 │   │   ├── logger.ts       # Custom logger with timestamps and log levels
 │   │   └── constants.ts    # Application constants
-│   └── index.ts            # Main entry point
+│   └── index.ts            # Main entry point (Express server)
 ├── tests/
 │   ├── unit/               # Unit tests
 │   ├── integration/        # Integration tests
 │   ├── rest/               # VS Code REST Client requests
-│   │   ├── requests.http   # HTTP request examples
-│   │   └── README.md       # REST Client usage instructions
+│   │   └── requests.http   # HTTP request examples
 │   └── setup/              # Test configuration and utilities
+│       ├── jest.setup.ts   # Jest global setup
+│       └── test-utils.ts   # Test helper utilities
 ├── coverage/               # Test coverage reports (auto-generated)
 ├── dist/                   # Compiled JavaScript output (auto-generated)
 ├── node_modules/           # Dependencies
@@ -54,7 +57,9 @@ node-ts-template/
 ├── biome.json              # Biome linter and formatter configuration
 ├── jest.config.ts          # Jest testing configuration
 ├── package.json            # Project configuration
-├── tsconfig.json           # TypeScript configuration
+├── package-lock.json       # Locked dependency versions
+├── tsconfig.json           # TypeScript configuration for development
+├── tsconfig.build.json     # TypeScript configuration for production builds
 └── README.md               # This file
 ```
 
@@ -84,6 +89,102 @@ npm run dev
 ```
 
 This will start the server on `http://localhost:3000` and automatically restart when you make changes to the code.
+
+## Working with Express
+
+### Basic Server Structure
+
+The Express application is set up in `src/index.ts` with the following features:
+
+```typescript
+import express, { type Request, type Response } from "express"
+
+const app = express()
+
+// Middleware
+app.use(express.json())                    // Parse JSON bodies
+app.use(express.urlencoded({ extended: true }))  // Parse URL-encoded bodies
+
+// Routes
+app.get("/", (_req: Request, res: Response) => {
+  res.send("Hello, World!")
+})
+
+// 404 handler
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not Found" })
+})
+```
+
+### Adding New Routes
+
+You can add new routes directly in `src/index.ts` or organize them in separate files:
+
+**Option 1: Add routes in index.ts**
+
+```typescript
+app.get("/api/users", (req: Request, res: Response) => {
+  res.json({ users: [] })
+})
+
+app.post("/api/users", (req: Request, res: Response) => {
+  const userData = req.body
+  res.status(201).json({ message: "User created", data: userData })
+})
+```
+
+**Option 2: Create route modules**
+
+```typescript
+// src/routes/users.ts
+import { Router, type Request, type Response } from "express"
+
+const router = Router()
+
+router.get("/", (req: Request, res: Response) => {
+  res.json({ users: [] })
+})
+
+router.post("/", (req: Request, res: Response) => {
+  res.status(201).json({ message: "User created" })
+})
+
+export default router
+
+// src/index.ts
+import userRoutes from "./routes/users"
+app.use("/api/users", userRoutes)
+```
+
+### Middleware
+
+Express middleware is already configured for common use cases:
+
+- **JSON parsing**: `express.json()` - Automatically parses JSON request bodies
+- **URL-encoded parsing**: `express.urlencoded({ extended: true })` - Handles form data
+
+Add custom middleware:
+
+```typescript
+// Logging middleware
+app.use((req: Request, res: Response, next) => {
+  logger.info(`${req.method} ${req.path}`)
+  next()
+})
+
+// Authentication middleware
+const authMiddleware = (req: Request, res: Response, next) => {
+  const token = req.headers.authorization
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized" })
+  }
+  next()
+}
+
+app.get("/protected", authMiddleware, (req, res) => {
+  res.json({ message: "Protected route" })
+})
+```
 
 ### Building
 
@@ -171,8 +272,9 @@ The project includes comprehensive testing with Jest and Supertest:
 
 - **Integration Tests** (`tests/integration/`) - Test complete workflows
 
-  - HTTP server endpoints
+  - Express HTTP endpoints
   - Request/response handling
+  - Middleware functionality
   - Server performance testing
 
 - **Test Utilities** (`tests/setup/`) - Helper functions and configurations
@@ -200,6 +302,45 @@ Tests automatically have access to:
 - TypeScript support
 - Environment mocking utilities
 
+#### Testing Express Routes
+
+Use Supertest to test your Express routes:
+
+```typescript
+import request from "supertest"
+import { app } from "@/index"
+
+describe("API Tests", () => {
+  it("should return users list", async () => {
+    const response = await request(app)
+      .get("/api/users")
+      .expect(200)
+
+    expect(response.body).toHaveProperty("users")
+  })
+
+  it("should create a new user", async () => {
+    const newUser = { name: "John Doe", email: "john@example.com" }
+
+    const response = await request(app)
+      .post("/api/users")
+      .send(newUser)
+      .set("Content-Type", "application/json")
+      .expect(201)
+
+    expect(response.body).toHaveProperty("message", "User created")
+  })
+
+  it("should return 404 for undefined routes", async () => {
+    const response = await request(app)
+      .get("/nonexistent")
+      .expect(404)
+
+    expect(response.body).toEqual({ error: "Not Found" })
+  })
+})
+```
+
 ### Manual API Testing
 
 This project includes configuration for manual API testing using two popular VS Code extensions:
@@ -220,7 +361,7 @@ REST Client requests are available in [tests/rest/requests.http](tests/rest/requ
 - Multiple requests in a single file
 - Inline response viewing
 
-See [tests/rest/README.md](tests/rest/README.md) for detailed usage instructions.
+See the comments in [tests/rest/requests.http](tests/rest/requests.http) for detailed usage instructions.
 
 #### Available Test Requests
 
@@ -234,13 +375,12 @@ Both tools include the same set of test requests:
 
 This project includes recommended VS Code extensions in [.vscode/extensions.json](.vscode/extensions.json). When you open the project in VS Code, you'll be prompted to install them.
 
-### Included Extensions
+### Recommended Extensions
 
 - **Better TypeScript Errors** (`better-ts-errors.better-ts-errors`) - Makes TypeScript error messages more readable and easier to understand
 - **Biome** (`biomejs.biome`) - Official Biome extension for linting and formatting with real-time feedback
 - **Jest** (`Orta.vscode-jest`) - Integrated Jest testing with inline test results and debugging
 - **Path Intellisense** (`christian-kohler.path-intellisense`) - Autocomplete for file paths in your code
-- **Thunder Client** (`rangav.vscode-thunder-client`) - Lightweight REST API client for testing HTTP endpoints
 
 ### Installing Extensions
 
@@ -362,6 +502,7 @@ If you don't want to use Codecov, the workflow will continue without failing.
 
 ### Runtime Dependencies
 
+- **express** - Fast, unopinionated, minimalist web framework for Node.js
 - **dotenv** - Load environment variables from `.env` files
 - **zod** - TypeScript-first schema validation for environment variables
 
@@ -369,6 +510,7 @@ If you don't want to use Codecov, the workflow will continue without failing.
 
 - **typescript** - TypeScript compiler
 - **@types/node** - Node.js type definitions
+- **@types/express** - TypeScript definitions for Express
 - **ts-node** - Run TypeScript directly without compilation
 - **nodemon** - Monitor for file changes and auto-restart
 - **rimraf** - Cross-platform rm -rf command
