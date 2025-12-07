@@ -56,7 +56,7 @@ describe("Express Server Integration Tests", () => {
 
 	describe("Different Routes", () => {
 		it("should return 404 for undefined routes", async () => {
-			const paths = ["/test", "/api", "/health", "/nonexistent"]
+			const paths = ["/test", "/api", "/nonexistent"]
 
 			for (const path of paths) {
 				const response = await request(app).get(path)

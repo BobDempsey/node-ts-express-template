@@ -6,6 +6,7 @@ import { GREETING } from "@/lib/constants"
 import env from "@/lib/env"
 import { logger } from "@/lib/logger"
 import { errorHandler, requestLogger } from "@/middleware"
+import routes from "@/routes"
 
 dotenv.config({ quiet: true })
 
@@ -33,6 +34,8 @@ app.use(express.urlencoded({ extended: true }))
 app.use(requestLogger)
 
 // Routes
+app.use(routes)
+
 app.get("/", (_req: Request, res: Response) => {
 	res.send(GREETING)
 })
