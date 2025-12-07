@@ -220,7 +220,7 @@ src/
 
 1. [x] Add `helmet` for security headers
 2. [x] Add `cors` with configuration
-3. [ ] Create custom error classes
+3. [x] Create custom error classes
 4. [ ] Add centralized error handler middleware
 5. [ ] Add request logging middleware
 6. [ ] Add health check endpoints
@@ -294,15 +294,11 @@ src/
 - Maintain backwards compatibility where possible
 - Keep the template minimal - don't over-engineer
 
-## Misc
+## Misc/General
 
 - do we need http status codes for http errors and responses?
 - don't forget to close anything you've opened before exiting (dev server, localhost, db connections, etc.)
 - before completing a feature, ensure all tests pass and coverage is maintained, ensure build succeeds, ensure npm run dev succeeds (don't forget to close the server after testing)
-## Updating Routes
-
-When adding new routes, don't forget these steps:
-
-- include appropriate tests
-- update requests.http with examples
-- update readme if necessary
+- include all appropriate tests (including regression tests) if needed
+- update requests.http with examples if needed
+- update readme if needed
