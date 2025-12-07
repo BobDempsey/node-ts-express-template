@@ -8,6 +8,27 @@
 # or using REST Client environment files.
 
 ###############################################################################
+# Health Check Endpoints
+###############################################################################
+
+### GET /health - Basic health check (200 OK)
+# Returns service health status with timestamp
+# Expected response: {"status": "ok", "timestamp": "..."}
+GET {{baseUrl}}/health
+
+### GET /ready - Readiness check (200 OK)
+# Verifies if service is ready to accept requests
+# Used by load balancers and orchestrators
+# Expected response: {"status": "ready", "timestamp": "..."}
+GET {{baseUrl}}/ready
+
+### GET /live - Liveness check (200 OK)
+# Verifies if service is alive and functioning
+# Used by Kubernetes and other orchestrators for pod health
+# Expected response: {"status": "alive", "timestamp": "..."}
+GET {{baseUrl}}/live
+
+###############################################################################
 # Basic GET Requests
 ###############################################################################
 

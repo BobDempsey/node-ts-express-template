@@ -20,7 +20,8 @@ A production-ready Node.js project template with TypeScript and Express.js suppo
 - 🪝 **Pre-commit Hooks** - Husky and lint-staged for automatic code quality checks
 - 📝 **Built-in Logger** - Custom logger with timestamps and log levels
 - 🛡️ **Security Headers** - Helmet middleware pre-configured for HTTP security
-- 🛡️ **Error Handling** - Built-in 404 handler and error management
+- 🛡️ **Error Handling** - Centralized error handling with custom error classes
+- 🏥 **Health Check Endpoints** - Built-in /health, /ready, and /live endpoints for monitoring
 
 ## Quick Start
 
@@ -69,6 +70,16 @@ node-ts-express-template/
 │   │   ├── try-parse-env.ts # Zod environment parsing utility
 │   │   ├── logger.ts       # Custom logger with timestamps and log levels
 │   │   └── constants.ts    # Application constants
+│   ├── middleware/
+│   │   ├── index.ts        # Middleware exports
+│   │   ├── error-handler.ts # Centralized error handling
+│   │   └── request-logger.ts # Request logging with tracing
+│   ├── errors/
+│   │   ├── index.ts        # Error class exports
+│   │   └── http-errors.ts  # Custom HTTP error classes
+│   ├── routes/
+│   │   ├── index.ts        # Route aggregator
+│   │   └── health.routes.ts # Health check endpoints
 │   └── index.ts            # Main entry point (Express server)
 ├── tests/
 │   ├── unit/               # Unit tests
@@ -712,20 +723,40 @@ if (config.security.rateLimitEnabled) {
 }
 ```
 
-#### Health Check Endpoint
+#### Health Check Endpoints
 
-Add a health check endpoint for monitoring:
+This template includes built-in health check endpoints for monitoring and orchestration:
 
-```typescript
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "healthy",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV
-  })
-})
+**Available Endpoints:**
+
+- **`GET /health`** - Basic health check
+  - Always returns 200 if the service is running
+  - Response: `{"status": "ok", "timestamp": "..."}`
+
+- **`GET /ready`** - Readiness check
+  - Verifies if the service is ready to accept requests
+  - Used by load balancers and orchestrators
+  - Response: `{"status": "ready", "timestamp": "..."}`
+
+- **`GET /live`** - Liveness check
+  - Verifies if the service is alive and functioning
+  - Used by Kubernetes for pod health monitoring
+  - Response: `{"status": "alive", "timestamp": "..."}`
+
+**Usage:**
+
+```bash
+# Check service health
+curl http://localhost:3000/health
+
+# Check readiness (for load balancers)
+curl http://localhost:3000/ready
+
+# Check liveness (for Kubernetes)
+curl http://localhost:3000/live
 ```
+
+These endpoints are defined in `src/routes/health.routes.ts` and can be customized to check database connections, external dependencies, or other service-specific requirements.
 
 ### Building
 
@@ -904,13 +935,16 @@ REST Client requests are available in [tests/rest/requests.http](tests/rest/requ
 
 #### Understanding Expected Responses
 
-The template uses **Express routing**, which means routes must be explicitly defined. By default, only `GET /` is configured:
+The template uses **Express routing**, which means routes must be explicitly defined. The following routes are pre-configured:
 
 **Will Return 200 OK:**
 - `GET /` - Returns the greeting message
+- `GET /health` - Health check endpoint
+- `GET /ready` - Readiness check endpoint
+- `GET /live` - Liveness check endpoint
 
 **Will Return 404 Not Found:**
-- Any POST, PUT, DELETE, PATCH requests
+- Any POST, PUT, DELETE, PATCH requests (unless you define them)
 - Any GET requests to undefined routes (e.g., `/api/test`, `/users`)
 - Response format: `{"error": "Not Found"}`
 
@@ -926,9 +960,12 @@ See the comments in [tests/rest/requests.http](tests/rest/requests.http) for det
 #### Available Test Requests
 
 The requests file includes:
+- **Health Check Endpoints** - Test /health, /ready, and /live endpoints
 - **Basic GET Requests** - Test the root route and observe 404 for undefined routes
 - **POST Requests** - Examples that return 404 (add your own routes to make them work)
 - **Other HTTP Methods** - PUT, DELETE, PATCH examples (currently return 404)
+- **Security Headers** - Verify Helmet security headers
+- **CORS** - Test cross-origin requests
 - **Example Templates** - Commented examples for common API endpoints you might add
 
 ## Recommended VS Code Extensions
