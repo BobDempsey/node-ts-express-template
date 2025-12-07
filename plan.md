@@ -221,7 +221,7 @@ src/
 1. [x] Add `helmet` for security headers
 2. [x] Add `cors` with configuration
 3. [x] Create custom error classes
-4. [ ] Add centralized error handler middleware
+4. [x] Add centralized error handler middleware
 5. [ ] Add request logging middleware
 6. [ ] Add health check endpoints
 
@@ -296,9 +296,15 @@ src/
 
 ## Misc/General
 
-- do we need http status codes for http errors and responses?
 - don't forget to close anything you've opened before exiting (dev server, localhost, db connections, etc.)
-- before completing a feature, ensure all tests pass and coverage is maintained, ensure build succeeds, ensure npm run dev succeeds (don't forget to close the server after testing)
+- before completing a feature, ensure all tests pass and coverage is maintained, ensure build succeeds
 - include all appropriate tests (including regression tests) if needed
 - update requests.http with examples if needed
 - update readme if needed
+
+## questions
+
+- do we need the npm http status codes package for http errors and responses?
+- do we want to include any database integration (e.g., a simple SQLite setup) as part of the template?
+- do we want to include a standard logging library (e.g., pino or winston) instead of a custom logger?
+- do we want to include a standard response format for all API responses?

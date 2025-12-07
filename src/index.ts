@@ -5,6 +5,7 @@ import helmet from "helmet"
 import { GREETING } from "@/lib/constants"
 import env from "@/lib/env"
 import { logger } from "@/lib/logger"
+import { errorHandler } from "@/middleware"
 
 dotenv.config({ quiet: true })
 
@@ -37,6 +38,9 @@ app.get("/", (_req: Request, res: Response) => {
 app.use((_req: Request, res: Response) => {
 	res.status(404).json({ error: "Not Found" })
 })
+
+// Centralized error handler (must be last)
+app.use(errorHandler)
 
 // Start server
 const server = app.listen(PORT, () => {
