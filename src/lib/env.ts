@@ -19,7 +19,15 @@ const EnvSchema = z.object({
 			const parsed = Number.parseInt(val, 10)
 			return Number.isNaN(parsed) ? 3000 : parsed
 		})
+		.optional(),
+	CORS_ORIGIN: z
+		.string()
 		.optional()
+		.transform((val) => {
+			if (!val) return undefined
+			// Support comma-separated origins
+			return val.split(",").map((origin) => origin.trim())
+		})
 })
 
 export type EnvSchema = z.infer<typeof EnvSchema>

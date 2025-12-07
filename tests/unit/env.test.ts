@@ -26,12 +26,14 @@ describe("Environment Configuration", () => {
 			// Import the schema after mocking
 			const expectedSchema = z.object({
 				NODE_ENV: z.string().optional(),
-				PORT: z.number().default(3000).optional()
+				PORT: z.number().default(3000).optional(),
+				CORS_ORIGIN: z.array(z.string()).optional()
 			})
 
 			// Test schema properties
 			expect(expectedSchema.shape.NODE_ENV).toBeDefined()
 			expect(expectedSchema.shape.PORT).toBeDefined()
+			expect(expectedSchema.shape.CORS_ORIGIN).toBeDefined()
 		})
 
 		it("should have optional NODE_ENV field", () => {
@@ -52,6 +54,19 @@ describe("Environment Configuration", () => {
 			// Should not throw with undefined PORT and should use default
 			const result = schema.parse({})
 			expect(result.PORT).toBe(port)
+		})
+
+		it("should have optional CORS_ORIGIN field", () => {
+			const schema = z.object({
+				CORS_ORIGIN: z
+					.string()
+					.optional()
+					.transform((val) => (val ? val.split(",") : undefined))
+			})
+
+			// Should not throw with undefined CORS_ORIGIN
+			expect(() => schema.parse({ CORS_ORIGIN: undefined })).not.toThrow()
+			expect(() => schema.parse({})).not.toThrow()
 		})
 	})
 
@@ -89,6 +104,79 @@ describe("Environment Configuration", () => {
 			for (const env of NODE_ENV_VALUES) {
 				expect(() => schema.parse({ NODE_ENV: env })).not.toThrow()
 			}
+		})
+
+		it("should transform CORS_ORIGIN comma-separated string to array", () => {
+			const schema = z.object({
+				CORS_ORIGIN: z
+					.string()
+					.optional()
+					.transform((val) => {
+						if (!val) return undefined
+						return val.split(",").map((origin) => origin.trim())
+					})
+			})
+
+			const result = schema.parse({
+				CORS_ORIGIN: "http://localhost:3000,https://example.com"
+			})
+			expect(result.CORS_ORIGIN).toEqual([
+				"http://localhost:3000",
+				"https://example.com"
+			])
+			expect(Array.isArray(result.CORS_ORIGIN)).toBe(true)
+		})
+
+		it("should trim whitespace from CORS_ORIGIN values", () => {
+			const schema = z.object({
+				CORS_ORIGIN: z
+					.string()
+					.optional()
+					.transform((val) => {
+						if (!val) return undefined
+						return val.split(",").map((origin) => origin.trim())
+					})
+			})
+
+			const result = schema.parse({
+				CORS_ORIGIN: "  http://localhost:3000  ,  https://example.com  "
+			})
+			expect(result.CORS_ORIGIN).toEqual([
+				"http://localhost:3000",
+				"https://example.com"
+			])
+		})
+
+		it("should handle single CORS_ORIGIN value", () => {
+			const schema = z.object({
+				CORS_ORIGIN: z
+					.string()
+					.optional()
+					.transform((val) => {
+						if (!val) return undefined
+						return val.split(",").map((origin) => origin.trim())
+					})
+			})
+
+			const result = schema.parse({
+				CORS_ORIGIN: "http://localhost:3000"
+			})
+			expect(result.CORS_ORIGIN).toEqual(["http://localhost:3000"])
+		})
+
+		it("should return undefined for empty CORS_ORIGIN", () => {
+			const schema = z.object({
+				CORS_ORIGIN: z
+					.string()
+					.optional()
+					.transform((val) => {
+						if (!val) return undefined
+						return val.split(",").map((origin) => origin.trim())
+					})
+			})
+
+			const result = schema.parse({})
+			expect(result.CORS_ORIGIN).toBeUndefined()
 		})
 	})
 })

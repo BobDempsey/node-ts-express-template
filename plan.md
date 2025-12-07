@@ -219,7 +219,7 @@ src/
 ### Phase 1: Foundation (High Priority)
 
 1. [x] Add `helmet` for security headers
-2. [ ] Add `cors` with configuration
+2. [x] Add `cors` with configuration
 3. [ ] Create custom error classes
 4. [ ] Add centralized error handler middleware
 5. [ ] Add request logging middleware
@@ -296,9 +296,9 @@ src/
 
 ## Misc
 
-- http status codes for errors and responses?
+- do we need http status codes for http errors and responses?
 - don't forget to close anything you've opened before exiting (dev server, localhost, db connections, etc.)
-
+- before completing a feature, ensure all tests pass and coverage is maintained, ensure build succeeds, ensure npm run dev succeeds (don't forget to close the server after testing)
 ## Updating Routes
 
 When adding new routes, don't forget these steps:

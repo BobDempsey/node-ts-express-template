@@ -102,6 +102,53 @@ GET {{baseUrl}}/
 GET {{baseUrl}}/api/nonexistent
 
 ###############################################################################
+# CORS (Cross-Origin Resource Sharing)
+###############################################################################
+
+### GET with Origin header - Check CORS response
+# CORS middleware allows cross-origin requests
+# Check for CORS headers in response:
+# - Access-Control-Allow-Origin: Specifies allowed origin(s)
+# - Access-Control-Allow-Credentials: true (allows cookies)
+# - Access-Control-Expose-Headers: Lists exposed headers
+GET {{baseUrl}}/
+Origin: http://example.com
+
+### OPTIONS preflight request - CORS preflight
+# Browsers send OPTIONS request before actual cross-origin requests
+# Check for:
+# - Access-Control-Allow-Methods: Allowed HTTP methods
+# - Access-Control-Allow-Headers: Allowed request headers
+# - Access-Control-Max-Age: Cache duration for preflight response
+OPTIONS {{baseUrl}}/
+Origin: http://example.com
+Access-Control-Request-Method: POST
+Access-Control-Request-Headers: Content-Type, Authorization
+
+### POST with Origin - CORS actual request
+# After successful preflight, browser sends actual request
+# Response will include CORS headers
+POST {{baseUrl}}/
+Origin: http://example.com
+Content-Type: application/json
+
+{
+  "test": "data"
+}
+
+### GET with custom origin - Environment-specific origin
+# To restrict origins in production, set CORS_ORIGIN env variable:
+# Example: CORS_ORIGIN="http://localhost:3000,https://myapp.com"
+GET {{baseUrl}}/
+Origin: http://localhost:3000
+
+### GET from different origin - Multiple origins
+# CORS supports multiple origins via comma-separated CORS_ORIGIN
+# Example: CORS_ORIGIN="http://origin1.com,http://origin2.com"
+GET {{baseUrl}}/
+Origin: http://trusted-origin.com
+
+###############################################################################
 # Edge Cases
 ###############################################################################
 

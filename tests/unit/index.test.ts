@@ -241,6 +241,113 @@ describe("index.ts - Server Instance", () => {
 		})
 	})
 
+	describe("CORS Configuration", () => {
+		it("should include CORS headers in responses", async () => {
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			const response = await request(server)
+				.get("/")
+				.set("Origin", "http://example.com")
+
+			expect(response.headers["access-control-allow-origin"]).toBeDefined()
+		})
+
+		it("should handle preflight OPTIONS requests", async () => {
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			const response = await request(server)
+				.options("/")
+				.set("Origin", "http://example.com")
+				.set("Access-Control-Request-Method", "POST")
+
+			expect(response.status).toBe(204)
+			expect(response.headers["access-control-allow-methods"]).toContain("POST")
+		})
+
+		it("should allow credentials in CORS requests", async () => {
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			const response = await request(server)
+				.get("/")
+				.set("Origin", "http://example.com")
+
+			expect(response.headers["access-control-allow-credentials"]).toBe("true")
+		})
+
+		it("should respect CORS_ORIGIN environment variable", async () => {
+			process.env.CORS_ORIGIN = "http://trusted-origin.com"
+
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			const response = await request(server)
+				.get("/")
+				.set("Origin", "http://trusted-origin.com")
+
+			expect(response.headers["access-control-allow-origin"]).toBe(
+				"http://trusted-origin.com"
+			)
+		})
+
+		it("should support multiple CORS origins from environment", async () => {
+			process.env.CORS_ORIGIN =
+				"http://origin1.com,http://origin2.com,http://origin3.com"
+
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			// Test first origin
+			const response1 = await request(server)
+				.get("/")
+				.set("Origin", "http://origin1.com")
+
+			expect(response1.headers["access-control-allow-origin"]).toBe(
+				"http://origin1.com"
+			)
+
+			// Test second origin
+			const response2 = await request(server)
+				.get("/")
+				.set("Origin", "http://origin2.com")
+
+			expect(response2.headers["access-control-allow-origin"]).toBe(
+				"http://origin2.com"
+			)
+		})
+
+		it("should expose specified headers", async () => {
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			const response = await request(server)
+				.options("/")
+				.set("Origin", "http://example.com")
+				.set("Access-Control-Request-Method", "GET")
+
+			expect(response.headers["access-control-expose-headers"]).toContain(
+				"Content-Length"
+			)
+			expect(response.headers["access-control-expose-headers"]).toContain(
+				"X-Request-Id"
+			)
+		})
+	})
+
 	describe("Error Handling", () => {
 		it("should have error event listener registered", async () => {
 			jest.resetModules()

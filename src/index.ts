@@ -1,3 +1,4 @@
+import cors from "cors"
 import dotenv from "dotenv"
 import express, { type Request, type Response } from "express"
 import helmet from "helmet"
@@ -12,6 +13,18 @@ const PORT: number = env.PORT ?? 3000
 
 // Middleware
 app.use(helmet())
+
+// CORS Configuration
+const corsOptions = {
+	origin: env.CORS_ORIGIN ?? true, // Allow all origins in development, or use configured origins
+	credentials: true, // Allow cookies and credentials
+	methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+	allowedHeaders: ["Content-Type", "Authorization"],
+	exposedHeaders: ["Content-Length", "X-Request-Id"],
+	maxAge: 86400 // 24 hours
+}
+app.use(cors(corsOptions))
+
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
