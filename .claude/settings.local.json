@@ -5,7 +5,12 @@
 			"Bash(npm run test:coverage:*)",
 			"WebFetch(domain:code.claude.com)",
 			"Bash(npm run build:*)",
-			"Bash(cat:*)"
+			"Bash(cat:*)",
+			"Bash(npm install:*)",
+			"Bash(npm run dev:*)",
+			"Bash(netstat:*)",
+			"Bash(findstr:*)",
+			"Bash(tasklist:*)"
 		],
 		"deny": [],
 		"ask": []

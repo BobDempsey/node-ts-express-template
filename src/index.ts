@@ -1,15 +1,17 @@
 import dotenv from "dotenv"
 import express, { type Request, type Response } from "express"
+import helmet from "helmet"
 import { GREETING } from "@/lib/constants"
 import env from "@/lib/env"
 import { logger } from "@/lib/logger"
 
-dotenv.config()
+dotenv.config({ quiet: true })
 
 const app = express()
 const PORT: number = env.PORT ?? 3000
 
 // Middleware
+app.use(helmet())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 

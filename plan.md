@@ -218,7 +218,7 @@ src/
 
 ### Phase 1: Foundation (High Priority)
 
-1. [ ] Add `helmet` for security headers
+1. [x] Add `helmet` for security headers
 2. [ ] Add `cors` with configuration
 3. [ ] Create custom error classes
 4. [ ] Add centralized error handler middleware
@@ -293,3 +293,16 @@ src/
 - All changes should include corresponding tests
 - Maintain backwards compatibility where possible
 - Keep the template minimal - don't over-engineer
+
+## Misc
+
+- http status codes for errors and responses?
+- don't forget to close anything you've opened before exiting (dev server, localhost, db connections, etc.)
+
+## Updating Routes
+
+When adding new routes, don't forget these steps:
+
+- include appropriate tests
+- update requests.http with examples
+- update readme if necessary

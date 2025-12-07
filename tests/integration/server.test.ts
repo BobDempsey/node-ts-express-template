@@ -1,8 +1,11 @@
 import request from "supertest"
-import { app } from "@/index"
+import server, { app } from "@/index"
 import { GREETING } from "@/lib/constants"
 
 describe("Express Server Integration Tests", () => {
+	afterAll((done) => {
+		server.close(done)
+	})
 	describe("GET /", () => {
 		it("should respond with 200 status", async () => {
 			const response = await request(app).get("/")
@@ -111,6 +114,44 @@ describe("Express Server Integration Tests", () => {
 				.set("Content-Type", "application/json")
 
 			expect(response.status).toBe(404) // Route not defined, but body should be parsed
+		})
+	})
+
+	describe("Security Headers (Helmet)", () => {
+		it("should set Content-Security-Policy header", async () => {
+			const response = await request(app).get("/")
+			expect(response.headers["content-security-policy"]).toBeDefined()
+			expect(response.headers["content-security-policy"]).toContain(
+				"default-src"
+			)
+		})
+
+		it("should set X-Content-Type-Options header", async () => {
+			const response = await request(app).get("/")
+			expect(response.headers["x-content-type-options"]).toBe("nosniff")
+		})
+
+		it("should set X-Frame-Options header", async () => {
+			const response = await request(app).get("/")
+			expect(response.headers["x-frame-options"]).toBe("SAMEORIGIN")
+		})
+
+		it("should set Strict-Transport-Security header", async () => {
+			const response = await request(app).get("/")
+			expect(response.headers["strict-transport-security"]).toBeDefined()
+			expect(response.headers["strict-transport-security"]).toContain(
+				"max-age="
+			)
+		})
+
+		it("should set X-DNS-Prefetch-Control header", async () => {
+			const response = await request(app).get("/")
+			expect(response.headers["x-dns-prefetch-control"]).toBe("off")
+		})
+
+		it("should set Referrer-Policy header", async () => {
+			const response = await request(app).get("/")
+			expect(response.headers["referrer-policy"]).toBe("no-referrer")
 		})
 	})
 })

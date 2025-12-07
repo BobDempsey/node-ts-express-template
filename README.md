@@ -19,6 +19,7 @@ A production-ready Node.js project template with TypeScript and Express.js suppo
 - 🎨 **Code Quality** - Biome for fast linting and formatting
 - 🪝 **Pre-commit Hooks** - Husky and lint-staged for automatic code quality checks
 - 📝 **Built-in Logger** - Custom logger with timestamps and log levels
+- 🛡️ **Security Headers** - Helmet middleware pre-configured for HTTP security
 - 🛡️ **Error Handling** - Built-in 404 handler and error management
 
 ## Quick Start
@@ -126,10 +127,12 @@ The Express application is set up in `src/index.ts` with the following features:
 
 ```typescript
 import express, { type Request, type Response } from "express"
+import helmet from "helmet"
 
 const app = express()
 
 // Middleware
+app.use(helmet())                          // Security headers
 app.use(express.json())                    // Parse JSON bodies
 app.use(express.urlencoded({ extended: true }))  // Parse URL-encoded bodies
 
@@ -188,6 +191,7 @@ app.use("/api/users", userRoutes)
 
 Express middleware is already configured for common use cases:
 
+- **Security headers**: `helmet()` - Adds security headers to protect against common vulnerabilities
 - **JSON parsing**: `express.json()` - Automatically parses JSON request bodies
 - **URL-encoded parsing**: `express.urlencoded({ extended: true })` - Handles form data
 
@@ -529,27 +533,33 @@ app.get("/api/users", async (req, res) => {
 
 #### Security Headers
 
-Add security headers to protect against common vulnerabilities:
+The template comes with **Helmet** pre-installed and configured to protect against common web vulnerabilities. Helmet sets secure HTTP headers including:
 
-```bash
-# Install helmet for security headers
-npm install helmet
-npm install --save-dev @types/helmet
-```
+- **Content-Security-Policy** - Controls which resources can be loaded
+- **X-Content-Type-Options** - Prevents MIME type sniffing
+- **X-Frame-Options** - Protects against clickjacking
+- **Strict-Transport-Security** - Enforces HTTPS connections
+- **X-DNS-Prefetch-Control** - Controls DNS prefetching
+- **Referrer-Policy** - Controls referrer information
+
+Helmet is already configured in `src/index.ts`:
 
 ```typescript
 import helmet from "helmet"
 
-// Add security headers
-app.use(helmet())
+app.use(helmet())  // Already included in the template
+```
 
-// Or customize specific headers
+You can customize Helmet's configuration if needed:
+
+```typescript
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"]
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "https://trusted-cdn.com"]
       }
     },
     hsts: {
@@ -560,6 +570,8 @@ app.use(
   })
 )
 ```
+
+To verify security headers are working, check the response headers in your browser's developer tools or use the test requests in `tests/rest/requests.http`.
 
 #### CORS Configuration
 
@@ -1097,6 +1109,7 @@ If you don't want to use Codecov, the workflow will continue without failing.
 ### Runtime Dependencies
 
 - **express** - Fast, unopinionated, minimalist web framework for Node.js
+- **helmet** - Security middleware for setting HTTP headers
 - **dotenv** - Load environment variables from `.env` files
 - **zod** - TypeScript-first schema validation for environment variables
 
