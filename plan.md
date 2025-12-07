@@ -222,7 +222,7 @@ src/
 2. [x] Add `cors` with configuration
 3. [x] Create custom error classes
 4. [x] Add centralized error handler middleware
-5. [ ] Add request logging middleware
+5. [x] Add request logging middleware
 6. [ ] Add health check endpoints
 
 ### Phase 2: Structure (Medium Priority)
@@ -296,7 +296,6 @@ src/
 
 ## Misc/General
 
-- don't forget to close anything you've opened before exiting (dev server, localhost, db connections, etc.)
 - before completing a feature, ensure all tests pass and coverage is maintained, ensure build succeeds
 - include all appropriate tests (including regression tests) if needed
 - update requests.http with examples if needed

@@ -5,7 +5,7 @@ import helmet from "helmet"
 import { GREETING } from "@/lib/constants"
 import env from "@/lib/env"
 import { logger } from "@/lib/logger"
-import { errorHandler } from "@/middleware"
+import { errorHandler, requestLogger } from "@/middleware"
 
 dotenv.config({ quiet: true })
 
@@ -28,6 +28,9 @@ app.use(cors(corsOptions))
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+// Request logging
+app.use(requestLogger)
 
 // Routes
 app.get("/", (_req: Request, res: Response) => {

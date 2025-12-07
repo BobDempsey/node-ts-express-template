@@ -10,7 +10,8 @@
 			"Bash(npm run dev:*)",
 			"Bash(netstat:*)",
 			"Bash(findstr:*)",
-			"Bash(tasklist:*)"
+			"Bash(tasklist:*)",
+			"Bash(taskkill:*)"
 		],
 		"deny": [],
 		"ask": []
