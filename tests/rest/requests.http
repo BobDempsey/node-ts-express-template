@@ -197,18 +197,37 @@ Content-Type: application/json
 }
 
 ###############################################################################
+# API v1 Routes
+###############################################################################
+
+### GET /api/v1/ - v1 API root (200 OK)
+# Returns the greeting message
+GET {{baseUrl}}/api/v1/
+Accept: text/plain
+
+### GET /api/v1/example - Example endpoint (200 OK)
+# Returns a JSON response with example data
+# Expected response: {"message": "...", "version": "v1", "timestamp": "..."}
+GET {{baseUrl}}/api/v1/example
+Accept: application/json
+
+### GET /api/v1/nonexistent - Undefined v1 route (404)
+# Should return 404 for routes not defined under v1
+GET {{baseUrl}}/api/v1/nonexistent
+
+###############################################################################
 # Examples: Add Your Own Routes
 ###############################################################################
-# Uncomment and modify these after adding corresponding routes to src/index.ts
+# Uncomment and modify these after adding corresponding routes to src/routes/v1/
 
 # ### GET users list
-# GET {{baseUrl}}/api/users
+# GET {{baseUrl}}/api/v1/users
 
 # ### GET single user
-# GET {{baseUrl}}/api/users/1
+# GET {{baseUrl}}/api/v1/users/1
 
 # ### POST create user
-# POST {{baseUrl}}/api/users
+# POST {{baseUrl}}/api/v1/users
 # Content-Type: application/json
 #
 # {
@@ -217,7 +236,7 @@ Content-Type: application/json
 # }
 
 # ### PUT update user
-# PUT {{baseUrl}}/api/users/1
+# PUT {{baseUrl}}/api/v1/users/1
 # Content-Type: application/json
 #
 # {
@@ -226,4 +245,4 @@ Content-Type: application/json
 # }
 
 # ### DELETE user
-# DELETE {{baseUrl}}/api/users/1
+# DELETE {{baseUrl}}/api/v1/users/1

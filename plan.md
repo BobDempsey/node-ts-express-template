@@ -227,7 +227,7 @@ src/
 
 ### Phase 2: Structure (Medium Priority)
 
-7. [ ] Reorganize routes into separate modules
+7. [x] Reorganize routes into separate modules
 8. [ ] Add request validation middleware with Zod
 9. [ ] Add async error wrapper utility
 10. [ ] Separate app.ts from server startup
