@@ -21,6 +21,7 @@ A production-ready Node.js project template with TypeScript and Express.js suppo
 - 📝 **Built-in Logger** - Custom logger with timestamps and log levels
 - 🛡️ **Security Headers** - Helmet middleware pre-configured for HTTP security
 - 🛡️ **Error Handling** - Centralized error handling with custom error classes
+- ✅ **Request Validation** - Built-in Zod-based validation middleware for request body, params, and query
 - 🏥 **Health Check Endpoints** - Built-in /health, /ready, and /live endpoints for monitoring
 
 ## Quick Start
@@ -73,7 +74,8 @@ node-ts-express-template/
 │   ├── middleware/
 │   │   ├── index.ts        # Middleware exports
 │   │   ├── error-handler.ts # Centralized error handling
-│   │   └── request-logger.ts # Request logging with tracing
+│   │   ├── request-logger.ts # Request logging with tracing
+│   │   └── validate.ts      # Request validation with Zod
 │   ├── errors/
 │   │   ├── index.ts        # Error class exports
 │   │   └── http-errors.ts  # Custom HTTP error classes
@@ -354,10 +356,11 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 #### Request Validation
 
-Validate incoming request data to ensure data integrity:
+This template includes built-in request validation middleware powered by Zod. Validate request body, params, or query parameters with type safety:
 
 ```typescript
 import { z } from "zod"
+import { validate } from "@/middleware"
 
 // Define validation schema
 const CreateUserSchema = z.object({
@@ -366,31 +369,44 @@ const CreateUserSchema = z.object({
   age: z.number().int().min(18).optional()
 })
 
-// Validation middleware
-const validateBody = (schema: z.ZodSchema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    try {
-      req.body = schema.parse(req.body)
-      next()
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          error: "Validation failed",
-          details: error.errors
-        })
-      }
-      next(error)
-    }
-  }
-}
-
-// Usage
-app.post("/api/users", validateBody(CreateUserSchema), (req, res) => {
+// Validate request body (default)
+app.post("/api/users", validate(CreateUserSchema), (req, res) => {
   // req.body is now typed and validated
   const { name, email, age } = req.body
   res.status(201).json({ message: "User created", data: { name, email, age } })
 })
+
+// Validate URL parameters
+const UserIdSchema = z.object({
+  id: z.string().uuid()
+})
+
+app.get("/api/users/:id", validate(UserIdSchema, "params"), (req, res) => {
+  // req.params is validated
+  const { id } = req.params
+  res.json({ userId: id })
+})
+
+// Validate query parameters
+const SearchSchema = z.object({
+  q: z.string().min(1),
+  limit: z.coerce.number().min(1).max(100).default(10),
+  page: z.coerce.number().min(1).default(1)
+})
+
+app.get("/api/search", validate(SearchSchema, "query"), (req, res) => {
+  // req.query is validated with type coercion and defaults applied
+  const { q, limit, page } = req.query
+  res.json({ query: q, limit, page })
+})
 ```
+
+The validation middleware:
+- Validates data against Zod schemas
+- Applies type coercion and default values
+- Returns formatted error messages on validation failure
+- Throws `ValidationError` that's handled by the error handler
+- Supports validation of `body`, `params`, and `query`
 
 #### Structured Responses
 
