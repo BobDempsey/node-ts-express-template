@@ -26,6 +26,9 @@
 			},
 			"suspicious": {
 				"noConfusingVoidType": "off"
+			},
+			"complexity": {
+				"noCommaOperator": "off"
 			}
 		}
 	},

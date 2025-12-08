@@ -13,7 +13,7 @@ export const errorHandler = (
 	_req: Request,
 	res: Response,
 	_next: NextFunction
-) => {
+): void => {
 	// Handle operational errors (AppError instances)
 	if (err instanceof AppError) {
 		// Log operational errors
@@ -25,7 +25,8 @@ export const errorHandler = (
 		}
 
 		// Return the error response using toJSON()
-		return res.status(err.statusCode).json(err.toJSON())
+		res.status(err.statusCode).json(err.toJSON())
+		return
 	}
 
 	// Handle unexpected errors (non-operational)
@@ -45,5 +46,5 @@ export const errorHandler = (
 		...(env.NODE_ENV === "development" && err.stack && { stack: err.stack })
 	}
 
-	return res.status(500).json(response)
+	res.status(500).json(response)
 }
