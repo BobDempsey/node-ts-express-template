@@ -1,5 +1,6 @@
 import request from "supertest"
-import server, { app } from "@/index"
+import { app } from "@/app"
+import server from "@/index"
 
 describe("Health Check Endpoints Integration Tests", () => {
 	afterAll((done) => {

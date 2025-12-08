@@ -1,5 +1,6 @@
 import request from "supertest"
-import server, { app } from "@/index"
+import { app } from "@/app"
+import server from "@/index"
 import { GREETING } from "@/lib/constants"
 
 describe("API v1 Routes Integration Tests", () => {
