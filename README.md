@@ -18,13 +18,17 @@ A production-ready Node.js project template with TypeScript and Express.js suppo
 - 🧪 **Testing Suite** - Jest and Supertest for comprehensive unit and integration testing
 - 🎨 **Code Quality** - Biome for fast linting and formatting
 - 🪝 **Pre-commit Hooks** - Husky and lint-staged for automatic code quality checks
-- 📝 **Built-in Logger** - Custom logger with timestamps and log levels
+- 📝 **Request Logging** - Built-in request logger with unique IDs and structured JSON for production
+- 🔍 **Request Tracing** - Automatic UUID generation and X-Request-Id header for distributed tracing
 - 🛡️ **Security Headers** - Helmet middleware pre-configured for HTTP security
+- 🌐 **CORS Support** - Pre-configured CORS with environment-based origin control
 - 🛡️ **Error Handling** - Centralized error handling with custom error classes
 - ✅ **Request Validation** - Built-in Zod-based validation middleware for request body, params, and query
 - 🏥 **Health Check Endpoints** - Built-in /health, /ready, and /live endpoints for monitoring
 - 🔢 **API Versioning** - Organized route structure with v1 API endpoints and example routes
 - ⚡ **Async Handler** - Built-in utility for automatic async error handling
+- 🔄 **Graceful Shutdown** - SIGTERM handling for zero-downtime deployments
+- 🐳 **Production Ready** - Structured logging, error handling, and containerization support
 
 ## Quick Start
 
@@ -93,7 +97,8 @@ node-ts-express-template/
 │   ├── utils/
 │   │   ├── index.ts        # Utility exports
 │   │   └── async-handler.ts # Async route error wrapper
-│   └── index.ts            # Main entry point (Express server)
+│   ├── app.ts              # Express app configuration and middleware setup
+│   └── index.ts            # Server startup and lifecycle management
 ├── tests/
 │   ├── unit/               # Unit tests
 │   ├── integration/        # Integration tests
@@ -147,29 +152,80 @@ This will start the server on `http://localhost:3000` and automatically restart 
 
 ### Basic Server Structure
 
-The Express application is set up in `src/index.ts` with the following features:
+The template uses a clean separation between app configuration and server lifecycle:
 
+**`src/app.ts`** - Express app configuration:
 ```typescript
 import express, { type Request, type Response } from "express"
 import helmet from "helmet"
+import cors from "cors"
+import { requestLogger, errorHandler } from "@/middleware"
+import routes from "@/routes"
 
 const app = express()
 
 // Middleware
 app.use(helmet())                          // Security headers
+app.use(cors(corsOptions))                 // CORS configuration
 app.use(express.json())                    // Parse JSON bodies
 app.use(express.urlencoded({ extended: true }))  // Parse URL-encoded bodies
+app.use(requestLogger)                     // Request logging with tracing
 
 // Routes
-app.get("/", (_req: Request, res: Response) => {
-  res.send("Hello, World!")
-})
+app.use(routes)                            // API routes
+app.get("/", (_req, res) => res.send(GREETING))
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" })
 })
+
+// Centralized error handler (must be last)
+app.use(errorHandler)
+
+export { app }
 ```
+
+**`src/index.ts`** - Server startup and lifecycle:
+```typescript
+import { app } from "@/app"
+import env from "@/lib/env"
+import { logger } from "@/lib/logger"
+
+const PORT = env.PORT ?? 3000
+
+// Start server
+const server = app.listen(PORT, () => {
+  logger.info(`🚀 Server is running on http://localhost:${PORT}`)
+  logger.info(`📁 Environment: ${env.NODE_ENV || "development"}`)
+})
+
+// Handle server errors
+server.on("error", (err: NodeJS.ErrnoException) => {
+  if (err.code === "EADDRINUSE") {
+    logger.error(`❌ Port ${PORT} is already in use`)
+    process.exit(1)
+  }
+  logger.error(`❌ Server error: ${err.message}`)
+  process.exit(1)
+})
+
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  logger.info("🔄 SIGTERM received, shutting down gracefully...")
+  server.close(() => {
+    logger.info("✅ Process terminated")
+    process.exit(0)
+  })
+})
+```
+
+**Benefits of This Structure:**
+
+- **Testability**: Import `app` directly in tests without starting the server
+- **Separation of Concerns**: App configuration separate from server lifecycle
+- **Reusability**: Use the same app in different contexts (testing, serverless, etc.)
+- **Production-Ready**: Proper error handling and graceful shutdown built-in
 
 ### Adding New Routes
 
@@ -532,25 +588,98 @@ app.use("/api/users", userRoutes)
 
 #### Request Logging
 
-Log all incoming requests for debugging and monitoring:
+This template includes a built-in request logging middleware that automatically logs all HTTP requests. The middleware is already configured in `src/app.ts` and tracks:
+
+- HTTP method and path
+- Response status code
+- Response time in milliseconds
+- Unique request ID for tracing
+
+The logger uses different formats based on environment:
+
+**Development Mode:**
+```
+✅ GET /api/v1/users 200 - 45ms [a1b2c3d4-e5f6-7890-abcd-ef1234567890]
+⚠️  GET /api/v1/missing 404 - 12ms [b2c3d4e5-f6a7-8901-bcde-f12345678901]
+❌ POST /api/v1/error 500 - 234ms [c3d4e5f6-a7b8-9012-cdef-123456789012]
+```
+
+**Production Mode (Structured JSON):**
+```json
+{"requestId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","method":"GET","path":"/api/v1/users","statusCode":200,"duration":45,"timestamp":"2025-12-07T10:30:45.123Z"}
+```
+
+The structured JSON format in production is optimized for log aggregation tools like CloudWatch, Datadog, or ELK stack.
+
+**Custom Request Logging:**
+
+If you need additional logging in your routes, use the built-in logger:
 
 ```typescript
 import { logger } from "@/lib/logger"
 
-app.use((req: Request, res: Response, next: NextFunction) => {
-  const start = Date.now()
-
-  // Log when response finishes
-  res.on("finish", () => {
-    const duration = Date.now() - start
-    logger.info(
-      `${req.method} ${req.path} ${res.statusCode} - ${duration}ms`
-    )
-  })
-
-  next()
+app.get("/api/users", (req, res) => {
+  logger.info("Fetching users...")
+  const users = getUsers()
+  logger.debug(`Retrieved ${users.length} users`)
+  res.json({ users })
 })
 ```
+
+Available log levels: `info`, `warn`, `error`, `debug`
+
+#### Request Tracing
+
+Every HTTP request is automatically assigned a unique identifier (UUID) for distributed tracing and debugging. This feature is built into the request logging middleware.
+
+**How It Works:**
+
+1. **Unique Request ID**: Each request gets a UUID (e.g., `a1b2c3d4-e5f6-7890-abcd-ef1234567890`)
+2. **Response Header**: The ID is added to the response as `X-Request-Id` header
+3. **Logging**: The ID appears in all request logs for correlation
+4. **Programmatic Access**: Access the ID in your handlers via `req.id`
+
+**Viewing Request IDs:**
+
+Check response headers in your browser DevTools or curl:
+
+```bash
+curl -I http://localhost:3000/api/v1/example
+
+# Response includes:
+# X-Request-Id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+```
+
+**Using Request IDs in Your Code:**
+
+```typescript
+import { asyncHandler } from "@/utils"
+import { logger } from "@/lib/logger"
+
+app.get("/api/users/:id", asyncHandler(async (req, res) => {
+  const requestId = (req as any).id
+
+  logger.info(`[${requestId}] Fetching user ${req.params.id}`)
+
+  const user = await getUserById(req.params.id)
+
+  if (!user) {
+    logger.warn(`[${requestId}] User ${req.params.id} not found`)
+    throw new NotFoundError("User not found")
+  }
+
+  res.json({ user })
+}))
+```
+
+**Benefits:**
+
+- **Distributed Tracing**: Track requests across multiple services
+- **Debugging**: Correlate logs for a specific request
+- **Monitoring**: Link frontend errors to backend logs
+- **Support**: Customers can provide request IDs when reporting issues
+
+Request IDs are especially valuable in production environments with high traffic or microservice architectures.
 
 #### Pagination
 
@@ -630,29 +759,59 @@ To verify security headers are working, check the response headers in your brows
 
 #### CORS Configuration
 
-Enable Cross-Origin Resource Sharing for API access:
+This template comes with **CORS pre-configured** using the `cors` package. The configuration automatically adapts based on your environment.
 
-```bash
-npm install cors
-npm install --save-dev @types/cors
-```
+**Default Configuration** (in `src/app.ts`):
 
 ```typescript
-import cors from "cors"
-
-// Allow all origins (development only)
-app.use(cors())
-
-// Production configuration
-app.use(
-  cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(",") || "http://localhost:3000",
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-  })
-)
+const corsOptions = {
+  origin: env.CORS_ORIGIN ?? true, // Uses CORS_ORIGIN env var, or allows all in development
+  credentials: true, // Allow cookies and credentials
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["Content-Length", "X-Request-Id"], // Expose request tracing header
+  maxAge: 86400 // Cache preflight requests for 24 hours
+}
+app.use(cors(corsOptions))
 ```
+
+**Environment-Based Configuration:**
+
+Set the `CORS_ORIGIN` environment variable to control allowed origins:
+
+```bash
+# Development - Allow multiple local origins
+CORS_ORIGIN=http://localhost:3000,http://localhost:5173
+
+# Production - Restrict to your domains
+CORS_ORIGIN=https://app.example.com,https://admin.example.com
+```
+
+If `CORS_ORIGIN` is not set, the template allows all origins in development (`origin: true`).
+
+**Custom CORS Configuration:**
+
+To customize CORS settings, edit `src/app.ts`:
+
+```typescript
+const corsOptions = {
+  origin: (origin, callback) => {
+    const allowedOrigins = ["https://app.com", "https://admin.app.com"]
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error("Not allowed by CORS"))
+    }
+  },
+  credentials: true,
+  maxAge: 86400
+}
+app.use(cors(corsOptions))
+```
+
+**Testing CORS:**
+
+Use the included REST Client file at `tests/rest/requests.http` to test CORS headers.
 
 #### Rate Limiting
 
@@ -819,6 +978,215 @@ Run the compiled JavaScript in production:
 ```bash
 npm start
 ```
+
+## Production Deployment
+
+This template is production-ready with features designed for containerized deployments, cloud platforms, and high-traffic environments.
+
+### Graceful Shutdown
+
+The server handles termination signals gracefully, ensuring zero-downtime deployments:
+
+```typescript
+// Implemented in src/index.ts
+process.on("SIGTERM", () => {
+  logger.info("SIGTERM received, shutting down gracefully...")
+  server.close(() => {
+    logger.info("Process terminated")
+    process.exit(0)
+  })
+})
+```
+
+**How It Works:**
+
+1. **SIGTERM Signal**: Kubernetes, Docker, or your orchestrator sends SIGTERM
+2. **Stop Accepting Requests**: Server stops accepting new connections
+3. **Drain Connections**: Waits for existing requests to complete
+4. **Clean Exit**: Process exits with code 0
+
+**Benefits:**
+
+- **Zero Downtime**: No dropped requests during deployments
+- **Kubernetes-Ready**: Works with rolling updates and pod lifecycle
+- **Docker-Optimized**: Handles container stop signals properly
+- **Load Balancer Compatible**: Allows health checks to fail before shutdown
+
+**Testing Graceful Shutdown:**
+
+```bash
+# Start the server
+npm start
+
+# In another terminal, send SIGTERM
+kill -TERM $(lsof -t -i:3000)
+
+# You'll see:
+# SIGTERM received, shutting down gracefully...
+# Process terminated
+```
+
+### Structured Logging
+
+The template automatically switches to structured JSON logging in production for compatibility with log aggregation services.
+
+**Development Logs (Human-Readable):**
+
+```
+[2025-12-07T10:30:45.123Z] INFO: 🚀 Server is running on http://localhost:3000
+[2025-12-07T10:30:45.125Z] INFO: 📁 Environment: development
+✅ GET /api/v1/users 200 - 45ms [a1b2c3d4-e5f6-7890-abcd-ef1234567890]
+```
+
+**Production Logs (Structured JSON):**
+
+```json
+{"requestId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","method":"GET","path":"/api/v1/users","statusCode":200,"duration":45,"timestamp":"2025-12-07T10:30:45.123Z"}
+```
+
+**Compatible With:**
+
+- AWS CloudWatch Logs
+- Google Cloud Logging
+- Azure Monitor
+- Datadog
+- ELK Stack (Elasticsearch, Logstash, Kibana)
+- Splunk
+- New Relic
+
+The structured format makes it easy to filter, search, and analyze logs at scale.
+
+### Environment Configuration
+
+For production deployments, set these environment variables:
+
+```bash
+NODE_ENV=production
+PORT=3000
+CORS_ORIGIN=https://app.example.com,https://admin.example.com
+```
+
+**Important:**
+- Always set `NODE_ENV=production` to enable optimizations
+- Explicitly configure `CORS_ORIGIN` for security (don't rely on defaults)
+- Use secrets management for sensitive variables (AWS Secrets Manager, Kubernetes Secrets, etc.)
+
+### Docker Deployment
+
+Example `Dockerfile`:
+
+```dockerfile
+FROM node:24-alpine
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy source and build
+COPY . .
+RUN npm run build
+
+# Run as non-root user
+USER node
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
+```
+
+### Kubernetes Deployment
+
+Example deployment with health checks:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-app
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+      - name: app
+        image: your-registry/node-app:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: CORS_ORIGIN
+          value: "https://app.example.com"
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]
+```
+
+The `preStop` hook gives the load balancer time to remove the pod from rotation before SIGTERM is sent.
+
+### Error Handling in Production
+
+The error handler automatically adapts to the environment:
+
+**Development:**
+- Returns detailed error messages
+- Includes stack traces
+- Logs full error details
+
+**Production:**
+- Returns generic error messages for unexpected errors
+- Hides stack traces from API responses
+- Logs errors without exposing internal details
+
+This is handled automatically in `src/middleware/error-handler.ts` based on `NODE_ENV`.
+
+### Performance Considerations
+
+**Built-in Optimizations:**
+- Helmet security headers with caching
+- CORS preflight caching (24 hours)
+- Minimal middleware overhead
+- Efficient error handling
+
+**Recommended Additions:**
+- Response compression (gzip/brotli)
+- Request rate limiting
+- Database connection pooling
+- Redis caching layer
+- CDN for static assets
+
+### Monitoring and Observability
+
+**Health Check Endpoints:**
+- `/health` - Basic health check
+- `/ready` - Readiness for traffic (add database checks here)
+- `/live` - Liveness probe (add critical dependency checks)
+
+**Request Tracing:**
+- Every request has a unique `X-Request-Id` header
+- Correlate logs across services
+- Track requests through distributed systems
+
+**Recommended Monitoring:**
+- Application Performance Monitoring (APM): New Relic, Datadog, AppDynamics
+- Error Tracking: Sentry, Rollbar, Bugsnag
+- Log Aggregation: CloudWatch, Datadog, ELK
+- Metrics: Prometheus, StatsD, CloudWatch Metrics
 
 ### Other Commands
 
@@ -1112,7 +1480,11 @@ const EnvSchema = z.object({
 #### Supported Variables
 
 - `PORT` - Server port (default: 3000)
-- `NODE_ENV` - Environment mode (development, production, test)
+- `NODE_ENV` - Environment mode (development, production, test, staging)
+- `CORS_ORIGIN` - Comma-separated list of allowed CORS origins (optional)
+  - Example: `CORS_ORIGIN=https://app.example.com,https://admin.example.com`
+  - If not set, allows all origins in development (`true`)
+  - In production, you should explicitly set allowed origins for security
 
 #### Adding New Environment Variables
 
@@ -1132,6 +1504,7 @@ const EnvSchema = z.object({
    ```env
    PORT=3000
    NODE_ENV=development
+   CORS_ORIGIN=http://localhost:3000,http://localhost:5173
    DATABASE_URL=postgresql://localhost:5432/mydb
    API_KEY=your-secret-key
    ```
