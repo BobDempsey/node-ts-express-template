@@ -28,7 +28,8 @@ A production-ready Node.js project template with TypeScript and Express.js suppo
 - 🔢 **API Versioning** - Organized route structure with v1 API endpoints and example routes
 - ⚡ **Async Handler** - Built-in utility for automatic async error handling
 - 🔄 **Graceful Shutdown** - SIGTERM handling for zero-downtime deployments
-- 🐳 **Production Ready** - Structured logging, error handling, and containerization support
+- 🐳 **Docker Ready** - Multi-stage Dockerfile and docker-compose.yml included for containerized deployments
+- 🚢 **Production Ready** - Structured logging, error handling, and cloud-native features
 
 ## Quick Start
 
@@ -52,11 +53,22 @@ curl http://localhost:3000
 
 The server will start on `http://localhost:3000` with hot reload enabled. Make changes to your code and the server will automatically restart.
 
+**Quick Start with Docker:**
+```bash
+# Run with docker-compose
+docker-compose up
+
+# Or build and run manually
+docker build -t node-ts-express-template .
+docker run -p 3000:3000 node-ts-express-template
+```
+
 **Next Steps:**
 - Add your routes in `src/routes/v1/` for versioned API endpoints
 - Configure environment variables in `.env`
 - Run tests with `npm test`
 - Build for production with `npm run build`
+- Deploy with Docker (see Docker Deployment section)
 
 ## Project Structure
 
@@ -118,6 +130,8 @@ node-ts-express-template/
 ├── package-lock.json       # Locked dependency versions
 ├── tsconfig.json           # TypeScript configuration for development
 ├── tsconfig.build.json     # TypeScript configuration for production builds
+├── Dockerfile              # Multi-stage Docker build configuration
+├── docker-compose.yml      # Docker Compose configuration for local development
 └── README.md               # This file
 ```
 
@@ -1073,28 +1087,204 @@ CORS_ORIGIN=https://app.example.com,https://admin.example.com
 
 ### Docker Deployment
 
-Example `Dockerfile`:
+This template includes production-ready Docker configuration with multi-stage builds for optimal image size and security.
 
-```dockerfile
-FROM node:24-alpine
+#### Quick Start with Docker
 
-WORKDIR /app
+```bash
+# Build the image
+docker build -t node-ts-express-template .
 
-# Install dependencies
-COPY package*.json ./
-RUN npm ci --only=production
+# Run the container
+docker run -p 3000:3000 node-ts-express-template
 
-# Copy source and build
-COPY . .
-RUN npm run build
-
-# Run as non-root user
-USER node
-
-EXPOSE 3000
-
-CMD ["npm", "start"]
+# Or use docker-compose
+docker-compose up
 ```
+
+#### Multi-Stage Dockerfile
+
+The included `Dockerfile` uses a multi-stage build process for optimal performance and security:
+
+**Stage 1: Builder** - Installs all dependencies and builds TypeScript
+- Uses Node.js 24 Alpine for smaller image size
+- Supports npm, pnpm, and yarn package managers
+- Compiles TypeScript to JavaScript
+- Includes all dev dependencies needed for building
+
+**Stage 2: Runtime** - Production-ready runtime image
+- Only includes production dependencies
+- Copies built artifacts from builder stage
+- Runs as Node.js process (not npm start)
+- Significantly smaller final image size
+
+**Benefits:**
+- **Smaller Images**: Runtime image only contains production code and dependencies
+- **Faster Builds**: Docker layer caching optimizes rebuild times
+- **Security**: No dev dependencies or source code in production image
+- **Flexibility**: Automatically detects and uses your package manager (npm/pnpm/yarn)
+
+#### Docker Compose
+
+The `docker-compose.yml` provides a simple way to run the application:
+
+```yaml
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: node-ts-express-template:dev
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    ports:
+      - "3000:3000"
+```
+
+**Usage:**
+
+```bash
+# Start the application
+docker-compose up
+
+# Start in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the application
+docker-compose down
+
+# Rebuild and start
+docker-compose up --build
+```
+
+#### Environment Variables in Docker
+
+**Option 1: Environment Variables in docker-compose.yml**
+
+```yaml
+services:
+  app:
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - CORS_ORIGIN=https://app.example.com
+```
+
+**Option 2: Using .env file**
+
+Create a `.env` file and reference it in `docker-compose.yml`:
+
+```yaml
+services:
+  app:
+    env_file:
+      - .env
+```
+
+**Option 3: Docker run command**
+
+```bash
+docker run -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e PORT=3000 \
+  -e CORS_ORIGIN=https://app.example.com \
+  node-ts-express-template
+```
+
+#### Development with Docker
+
+For development with hot reload, you can mount your source code:
+
+```yaml
+services:
+  app:
+    build:
+      context: .
+      target: builder  # Use builder stage for dev dependencies
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+```
+
+Or run development server directly:
+
+```bash
+# Run dev server with volume mounts
+docker run -it -p 3000:3000 \
+  -v "$(pwd)/src:/app/src" \
+  -e NODE_ENV=development \
+  node-ts-express-template npm run dev
+```
+
+#### Production Deployment with Docker
+
+**Best Practices:**
+
+1. **Use Multi-Stage Builds** (already configured)
+2. **Run as Non-Root User** (optional, add to Dockerfile if needed)
+3. **Health Checks** in docker-compose.yml:
+
+```yaml
+services:
+  app:
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+
+4. **Resource Limits**:
+
+```yaml
+services:
+  app:
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+```
+
+**Docker Registry Deployment:**
+
+```bash
+# Tag for your registry
+docker tag node-ts-express-template your-registry.com/node-ts-express-template:latest
+
+# Push to registry
+docker push your-registry.com/node-ts-express-template:latest
+
+# Pull and run on production server
+docker pull your-registry.com/node-ts-express-template:latest
+docker run -d -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e CORS_ORIGIN=https://app.example.com \
+  --restart unless-stopped \
+  your-registry.com/node-ts-express-template:latest
+```
+
+#### Dockerfile Features
+
+The included Dockerfile provides:
+
+- **Automatic Package Manager Detection**: Supports npm, pnpm, and yarn
+- **Optimized Layer Caching**: Dependencies installed before source code copy
+- **Security**: Uses `--ignore-scripts` to prevent malicious package scripts
+- **Production Optimization**: Separate stages for build and runtime
+- **Graceful Shutdown**: Direct node execution (not through npm) for proper signal handling
+- **Health-Friendly**: Exposes port 3000 and works with `/health`, `/ready`, `/live` endpoints
 
 ### Kubernetes Deployment
 
