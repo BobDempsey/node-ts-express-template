@@ -23,6 +23,8 @@ A production-ready Node.js project template with TypeScript and Express.js suppo
 - 🛡️ **Error Handling** - Centralized error handling with custom error classes
 - ✅ **Request Validation** - Built-in Zod-based validation middleware for request body, params, and query
 - 🏥 **Health Check Endpoints** - Built-in /health, /ready, and /live endpoints for monitoring
+- 🔢 **API Versioning** - Organized route structure with v1 API endpoints and example routes
+- ⚡ **Async Handler** - Built-in utility for automatic async error handling
 
 ## Quick Start
 
@@ -47,7 +49,7 @@ curl http://localhost:3000
 The server will start on `http://localhost:3000` with hot reload enabled. Make changes to your code and the server will automatically restart.
 
 **Next Steps:**
-- Add your routes in `src/index.ts`
+- Add your routes in `src/routes/v1/` for versioned API endpoints
 - Configure environment variables in `.env`
 - Run tests with `npm test`
 - Build for production with `npm run build`
@@ -78,10 +80,19 @@ node-ts-express-template/
 │   │   └── validate.ts      # Request validation with Zod
 │   ├── errors/
 │   │   ├── index.ts        # Error class exports
-│   │   └── http-errors.ts  # Custom HTTP error classes
+│   │   ├── app-error.ts    # Base error class
+│   │   ├── validation-error.ts # Validation error class
+│   │   ├── not-found-error.ts # Not found error class
+│   │   └── unauthorized-error.ts # Unauthorized error class
 │   ├── routes/
 │   │   ├── index.ts        # Route aggregator
-│   │   └── health.routes.ts # Health check endpoints
+│   │   ├── health.routes.ts # Health check endpoints
+│   │   └── v1/             # API v1 routes
+│   │       ├── index.ts    # v1 route aggregator
+│   │       └── example.routes.ts # Example v1 endpoints
+│   ├── utils/
+│   │   ├── index.ts        # Utility exports
+│   │   └── async-handler.ts # Async route error wrapper
 │   └── index.ts            # Main entry point (Express server)
 ├── tests/
 │   ├── unit/               # Unit tests
@@ -162,43 +173,75 @@ app.use((_req: Request, res: Response) => {
 
 ### Adding New Routes
 
-You can add new routes directly in `src/index.ts` or organize them in separate files:
+This template uses a modular routing structure with API versioning. Add your routes in the `src/routes/v1/` directory:
 
-**Option 1: Add routes in index.ts**
-
-```typescript
-app.get("/api/users", (req: Request, res: Response) => {
-  res.json({ users: [] })
-})
-
-app.post("/api/users", (req: Request, res: Response) => {
-  const userData = req.body
-  res.status(201).json({ message: "User created", data: userData })
-})
-```
-
-**Option 2: Create route modules**
+**Step 1: Create a new route module**
 
 ```typescript
-// src/routes/users.ts
+// src/routes/v1/users.routes.ts
 import { Router, type Request, type Response } from "express"
+import { asyncHandler } from "@/utils"
 
 const router = Router()
 
-router.get("/", (req: Request, res: Response) => {
-  res.json({ users: [] })
-})
+// GET /api/v1/users
+router.get("/", asyncHandler(async (req: Request, res: Response) => {
+  // Async operations are automatically wrapped for error handling
+  const users = await fetchUsers()
+  res.json({ users })
+}))
 
-router.post("/", (req: Request, res: Response) => {
-  res.status(201).json({ message: "User created" })
-})
+// POST /api/v1/users
+router.post("/", asyncHandler(async (req: Request, res: Response) => {
+  const userData = req.body
+  const newUser = await createUser(userData)
+  res.status(201).json({ message: "User created", data: newUser })
+}))
 
 export default router
-
-// src/index.ts
-import userRoutes from "./routes/users"
-app.use("/api/users", userRoutes)
 ```
+
+**Step 2: Register the route in the v1 aggregator**
+
+```typescript
+// src/routes/v1/index.ts
+import { Router } from "express"
+import exampleRoutes from "./example.routes"
+import userRoutes from "./users.routes"  // Add this line
+
+const router = Router()
+
+router.use("/", exampleRoutes)
+router.use("/users", userRoutes)  // Add this line
+
+export default router
+```
+
+Your new routes are now available at `/api/v1/users`!
+
+#### API Versioning Structure
+
+The template includes an organized routing structure for API versioning:
+
+```
+Routes:
+├── /health                 # Health check (unversioned)
+├── /ready                  # Readiness check (unversioned)
+├── /live                   # Liveness check (unversioned)
+└── /api/v1/               # Version 1 API
+    ├── /                   # Returns greeting
+    ├── /example            # Example JSON response
+    ├── /async-example      # Example async route
+    └── /async-error-example # Example error handling
+```
+
+The example routes in `src/routes/v1/example.routes.ts` demonstrate:
+- Basic route handlers
+- Async route handlers with `asyncHandler`
+- Error handling in async routes
+- JSON responses with timestamps
+
+These can be used as templates for your own routes or removed once you've added your own endpoints.
 
 ### Middleware
 
@@ -259,9 +302,24 @@ app.use((_req: Request, res: Response) => {
 
 #### Async Error Handling
 
-For async route handlers, wrap them in a try-catch or use a wrapper function:
+This template includes a built-in `asyncHandler` utility for handling async route errors. It automatically catches promise rejections and forwards them to the error handling middleware.
 
-**Option 1: Try-Catch**
+**Option 1: Use asyncHandler (Recommended)**
+
+```typescript
+import { asyncHandler } from "@/utils"
+
+// asyncHandler automatically catches errors from async operations
+app.get("/api/users/:id", asyncHandler(async (req: Request, res: Response) => {
+  const user = await getUserById(req.params.id)
+  if (!user) {
+    throw new NotFoundError("User not found")  // Caught automatically
+  }
+  res.json(user)
+}))
+```
+
+**Option 2: Manual Try-Catch**
 
 ```typescript
 app.get("/api/users/:id", async (req: Request, res: Response, next: NextFunction) => {
@@ -277,80 +335,50 @@ app.get("/api/users/:id", async (req: Request, res: Response, next: NextFunction
 })
 ```
 
-**Option 2: Async Wrapper**
-
-```typescript
-// Helper function
-const asyncHandler = (fn: Function) => (req: Request, res: Response, next: NextFunction) => {
-  Promise.resolve(fn(req, res, next)).catch(next)
-}
-
-// Usage
-app.get("/api/users/:id", asyncHandler(async (req: Request, res: Response) => {
-  const user = await getUserById(req.params.id)
-  if (!user) {
-    return res.status(404).json({ error: "User not found" })
-  }
-  res.json(user)
-}))
-```
+The `asyncHandler` utility is available in `src/utils/async-handler.ts` and can be imported from `@/utils`.
 
 #### Custom Error Classes
 
-Create custom error classes for better error handling:
+This template includes pre-built error classes for common HTTP errors:
 
 ```typescript
-// src/lib/errors.ts
-export class AppError extends Error {
-  constructor(
-    public statusCode: number,
-    public message: string,
-    public isOperational = true
-  ) {
-    super(message)
-    Object.setPrototypeOf(this, AppError.prototype)
+import { NotFoundError, ValidationError, UnauthorizedError } from "@/errors"
+import { asyncHandler } from "@/utils"
+
+// Example usage with asyncHandler
+app.get("/api/users/:id", asyncHandler(async (req: Request, res: Response) => {
+  const user = await getUserById(req.params.id)
+  if (!user) {
+    throw new NotFoundError("User not found")  // Returns 404
   }
-}
+  res.json(user)
+}))
 
-export class NotFoundError extends AppError {
-  constructor(message = "Resource not found") {
-    super(404, message)
+app.post("/api/users", asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body
+  if (!email) {
+    throw new ValidationError("Email is required")  // Returns 400
   }
-}
+  const user = await createUser(req.body)
+  res.status(201).json(user)
+}))
 
-export class ValidationError extends AppError {
-  constructor(message = "Validation failed") {
-    super(400, message)
+app.get("/api/protected", asyncHandler(async (req: Request, res: Response) => {
+  if (!req.headers.authorization) {
+    throw new UnauthorizedError("Authentication required")  // Returns 401
   }
-}
-
-// Usage in routes
-import { NotFoundError } from "@/lib/errors"
-
-app.get("/api/users/:id", async (req, res, next) => {
-  try {
-    const user = await getUserById(req.params.id)
-    if (!user) {
-      throw new NotFoundError("User not found")
-    }
-    res.json(user)
-  } catch (error) {
-    next(error)
-  }
-})
-
-// Error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
-      error: err.message
-    })
-  }
-
-  logger.error(`Unexpected error: ${err.message}`)
-  res.status(500).json({ error: "Internal Server Error" })
-})
+  res.json({ data: "Protected resource" })
+}))
 ```
+
+**Available Error Classes:**
+
+- `AppError` - Base error class (in `src/errors/app-error.ts`)
+- `NotFoundError` - 404 errors (in `src/errors/not-found-error.ts`)
+- `ValidationError` - 400 validation errors (in `src/errors/validation-error.ts`)
+- `UnauthorizedError` - 401 authentication errors (in `src/errors/unauthorized-error.ts`)
+
+All errors are automatically handled by the centralized error handler middleware in `src/middleware/error-handler.ts`.
 
 ### Common Express Patterns
 
@@ -958,18 +986,23 @@ The template uses **Express routing**, which means routes must be explicitly def
 - `GET /health` - Health check endpoint
 - `GET /ready` - Readiness check endpoint
 - `GET /live` - Liveness check endpoint
+- `GET /api/v1/` - Returns the greeting message
+- `GET /api/v1/example` - Returns example JSON response
+- `GET /api/v1/async-example` - Returns async example response
+- `GET /api/v1/async-error-example` - Demonstrates error handling (will return 500)
 
 **Will Return 404 Not Found:**
 - Any POST, PUT, DELETE, PATCH requests (unless you define them)
-- Any GET requests to undefined routes (e.g., `/api/test`, `/users`)
+- Any GET requests to undefined routes
 - Response format: `{"error": "Not Found"}`
 
-This is **expected Express behavior**. Unlike the previous native HTTP server that responded to all routes, Express only responds to routes you explicitly define.
+This is **expected Express behavior**. Express only responds to routes you explicitly define.
 
 **To add new routes:**
-1. Define them in `src/index.ts` or create route modules
-2. Update the requests.http file with your new endpoints
-3. Test your new routes using the REST Client
+1. Create route modules in `src/routes/v1/` following the examples
+2. Register them in `src/routes/v1/index.ts`
+3. Update the requests.http file with your new endpoints
+4. Test your new routes using the REST Client
 
 See the comments in [tests/rest/requests.http](tests/rest/requests.http) for detailed usage instructions and example route templates you can uncomment after implementing them.
 

@@ -229,7 +229,7 @@ src/
 
 7. [x] Reorganize routes into separate modules
 8. [x] Add request validation middleware with Zod
-9. [ ] Add async error wrapper utility
+9. [x] Add async error wrapper utility
 10. [ ] Separate app.ts from server startup
 
 ### Phase 3: DevOps (Medium Priority)

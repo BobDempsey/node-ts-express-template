@@ -136,7 +136,7 @@ describe("requestLogger middleware", () => {
 
 	describe("Logging Format - Development", () => {
 		beforeEach(() => {
-			;(env as any).NODE_ENV = "development"
+			;(env as { NODE_ENV: string }).NODE_ENV = "development"
 		})
 
 		it("should use human-readable format in development", () => {
@@ -207,7 +207,7 @@ describe("requestLogger middleware", () => {
 
 	describe("Logging Format - Production", () => {
 		beforeEach(() => {
-			;(env as any).NODE_ENV = "production"
+			;(env as { NODE_ENV: string }).NODE_ENV = "production"
 		})
 
 		it("should use JSON format in production", () => {
@@ -267,7 +267,7 @@ describe("requestLogger middleware", () => {
 
 	describe("Response Time Tracking", () => {
 		beforeEach(() => {
-			;(env as any).NODE_ENV = "development"
+			;(env as { NODE_ENV: string }).NODE_ENV = "development"
 		})
 
 		it("should calculate response duration", () => {
@@ -313,7 +313,7 @@ describe("requestLogger middleware", () => {
 
 	describe("Edge Cases", () => {
 		beforeEach(() => {
-			;(env as any).NODE_ENV = "development"
+			;(env as { NODE_ENV: string }).NODE_ENV = "development"
 		})
 
 		it("should handle requests with query parameters", () => {

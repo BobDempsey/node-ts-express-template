@@ -139,7 +139,7 @@ describe("errorHandler middleware", () => {
 
 		it("should log stack trace in development for AppError", () => {
 			const originalEnv = env.NODE_ENV
-			;(env as any).NODE_ENV = "development"
+			;(env as { NODE_ENV: string }).NODE_ENV = "development"
 
 			const error = new ValidationError("Test error")
 			const stack = error.stack
@@ -152,12 +152,12 @@ describe("errorHandler middleware", () => {
 			)
 
 			expect(logger.error).toHaveBeenCalledWith(stack)
-			;(env as any).NODE_ENV = originalEnv
+			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 
 		it("should not log stack trace in production for AppError", () => {
 			const originalEnv = env.NODE_ENV
-			;(env as any).NODE_ENV = "production"
+			;(env as { NODE_ENV: string }).NODE_ENV = "production"
 
 			const error = new ValidationError("Test error")
 
@@ -171,7 +171,7 @@ describe("errorHandler middleware", () => {
 			// Should only log the error message, not the stack
 			expect(logger.error).toHaveBeenCalledTimes(1)
 			expect(logger.error).toHaveBeenCalledWith("VALIDATION_ERROR: Test error")
-			;(env as any).NODE_ENV = originalEnv
+			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 	})
 
@@ -191,7 +191,7 @@ describe("errorHandler middleware", () => {
 
 		it("should use generic error message in production", () => {
 			const originalEnv = env.NODE_ENV
-			;(env as any).NODE_ENV = "production"
+			;(env as { NODE_ENV: string }).NODE_ENV = "production"
 
 			const error = new Error("Database connection failed")
 
@@ -207,12 +207,12 @@ describe("errorHandler middleware", () => {
 				code: "INTERNAL_SERVER_ERROR",
 				statusCode: 500
 			})
-			;(env as any).NODE_ENV = originalEnv
+			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 
 		it("should expose error message in development", () => {
 			const originalEnv = env.NODE_ENV
-			;(env as any).NODE_ENV = "development"
+			;(env as { NODE_ENV: string }).NODE_ENV = "development"
 
 			const error = new Error("Database connection failed")
 			const stack = error.stack
@@ -230,12 +230,12 @@ describe("errorHandler middleware", () => {
 				statusCode: 500,
 				stack
 			})
-			;(env as any).NODE_ENV = originalEnv
+			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 
 		it("should include stack trace in development response", () => {
 			const originalEnv = env.NODE_ENV
-			;(env as any).NODE_ENV = "development"
+			;(env as { NODE_ENV: string }).NODE_ENV = "development"
 
 			const error = new Error("Test error")
 			const stack = error.stack
@@ -249,12 +249,12 @@ describe("errorHandler middleware", () => {
 
 			const callArgs = jsonMock.mock.calls[0][0]
 			expect(callArgs).toHaveProperty("stack", stack)
-			;(env as any).NODE_ENV = originalEnv
+			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 
 		it("should not include stack in production response", () => {
 			const originalEnv = env.NODE_ENV
-			;(env as any).NODE_ENV = "production"
+			;(env as { NODE_ENV: string }).NODE_ENV = "production"
 
 			const error = new Error("Test error")
 
@@ -267,7 +267,7 @@ describe("errorHandler middleware", () => {
 
 			const callArgs = jsonMock.mock.calls[0][0]
 			expect(callArgs).not.toHaveProperty("stack")
-			;(env as any).NODE_ENV = originalEnv
+			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 
 		it("should log unexpected errors", () => {
@@ -287,7 +287,7 @@ describe("errorHandler middleware", () => {
 
 		it("should log stack trace in development for unexpected errors", () => {
 			const originalEnv = env.NODE_ENV
-			;(env as any).NODE_ENV = "development"
+			;(env as { NODE_ENV: string }).NODE_ENV = "development"
 
 			const error = new Error("Test error")
 			const stack = error.stack
@@ -300,7 +300,7 @@ describe("errorHandler middleware", () => {
 			)
 
 			expect(logger.error).toHaveBeenCalledWith(stack)
-			;(env as any).NODE_ENV = originalEnv
+			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 	})
 

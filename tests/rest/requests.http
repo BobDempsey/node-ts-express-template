@@ -211,6 +211,19 @@ Accept: text/plain
 GET {{baseUrl}}/api/v1/example
 Accept: application/json
 
+### GET /api/v1/async-example - Async example endpoint (200 OK)
+# Demonstrates asyncHandler usage for async route handlers
+# Expected response: {"message": "...", "version": "v1", "timestamp": "...", "description": "..."}
+GET {{baseUrl}}/api/v1/async-example
+Accept: application/json
+
+### GET /api/v1/async-error-example - Async error example (500 Error)
+# Demonstrates error handling with asyncHandler
+# This route intentionally throws an error to show error middleware in action
+# Expected response: {"error": "Example async error - caught by asyncHandler"}
+GET {{baseUrl}}/api/v1/async-error-example
+Accept: application/json
+
 ### GET /api/v1/nonexistent - Undefined v1 route (404)
 # Should return 404 for routes not defined under v1
 GET {{baseUrl}}/api/v1/nonexistent
