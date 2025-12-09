@@ -29,6 +29,7 @@ Try the live demo at: [https://node-ts-express-template.onrender.com/](https://n
 - 🛡️ **Error Handling** - Centralized error handling with custom error classes
 - ✅ **Request Validation** - Built-in Zod-based validation middleware for request body, params, and query
 - 🏥 **Health Check Endpoints** - Built-in /health, /ready, and /live endpoints for monitoring
+- 🔐 **JWT Authentication** - Optional JWT-based auth with feature flag, refresh tokens, and pluggable user service
 - 🔢 **API Versioning** - Organized route structure with v1 API endpoints and example routes
 - 📚 **API Documentation** - Interactive Swagger/OpenAPI documentation at `/docs`
 - ⚡ **Async Handler** - Built-in utility for automatic async error handling
@@ -866,6 +867,91 @@ const authLimiter = rateLimit({
 app.post("/api/auth/login", authLimiter, (req, res) => {
   // Login logic
 })
+```
+
+#### JWT Authentication
+
+This template includes optional JWT-based authentication that can be enabled via a feature flag. When enabled, it provides:
+
+- **Access tokens** - Short-lived tokens (default: 1 hour) for API requests
+- **Refresh tokens** - Long-lived tokens (default: 7 days) for obtaining new access tokens
+- **Auth middleware** - Automatically protects routes and attaches user info to requests
+- **Pluggable user service** - Interface-based design for easy database integration
+
+**Enabling JWT Auth:**
+
+Set these environment variables:
+
+```bash
+# Enable JWT authentication
+ENABLE_JWT_AUTH=true
+
+# Secret key for signing tokens (min 32 characters, required when auth is enabled)
+JWT_SECRET=your-super-secret-key-at-least-32-chars
+
+# Token expiry (optional, defaults shown)
+JWT_EXPIRY=1h
+JWT_REFRESH_EXPIRY=7d
+```
+
+**Available Endpoints (when enabled):**
+
+- `POST /api/v1/auth/login` - Authenticate with email/password, returns tokens
+- `POST /api/v1/auth/refresh` - Exchange refresh token for new access token
+- `GET /api/v1/auth/me` - Get current user info (requires valid access token)
+
+**Test Credentials (stub user service):**
+
+```
+Email: test@example.com
+Password: password123
+```
+
+**Using Authentication in Routes:**
+
+When JWT auth is enabled, routes are automatically protected. Access user info via `req.user`:
+
+```typescript
+import { asyncHandler } from "@/utils"
+
+router.get("/profile", asyncHandler(async (req, res) => {
+  // req.user is populated by auth middleware
+  const { userId, email } = req.user!
+  res.json({ userId, email })
+}))
+```
+
+**Path Exclusions:**
+
+These paths are excluded from authentication by default:
+- `/health`, `/ready`, `/live` - Health check endpoints
+- `/docs` - Swagger documentation
+- `/api/v1/auth/*` - Auth endpoints (login, refresh)
+- `/` - Root endpoint
+
+**Implementing a Real User Service:**
+
+The template includes a stub user service for development. To use a real database:
+
+1. Create your implementation:
+
+```typescript
+// src/services/user.service.postgres.ts
+import { db } from '../lib/db'
+import bcrypt from 'bcrypt'
+import type { UserService } from './user.service'
+
+export const postgresUserService: UserService = {
+  findByEmail: (email) => db.user.findUnique({ where: { email } }),
+  validatePassword: (user, password) => bcrypt.compare(password, user.passwordHash),
+  findById: (id) => db.user.findUnique({ where: { id } }),
+}
+```
+
+2. Update the export in `src/services/index.ts`:
+
+```typescript
+export { postgresUserService as userService } from './user.service.postgres'
 ```
 
 #### Request Body Size Limits
@@ -1755,6 +1841,10 @@ const EnvSchema = z.object({
 - `RATE_LIMIT_WINDOW_MS` - Rate limiting window in milliseconds (default: 60000)
 - `RATE_LIMIT_MAX_REQUESTS` - Maximum requests per window (default: 100)
 - `SHUTDOWN_TIMEOUT_MS` - Graceful shutdown timeout in milliseconds (default: 30000)
+- `ENABLE_JWT_AUTH` - Enable JWT authentication (default: false)
+- `JWT_SECRET` - Secret key for signing JWT tokens (min 32 characters, required when auth enabled)
+- `JWT_EXPIRY` - Access token expiry duration (default: 1h)
+- `JWT_REFRESH_EXPIRY` - Refresh token expiry duration (default: 7d)
 
 #### Adding New Environment Variables
 
