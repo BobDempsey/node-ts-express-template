@@ -1,5 +1,5 @@
 /**
- * Integration Tests for Request Logger Middleware
+ * Integration Tests for Request Logger Middleware (Pino-based)
  *
  * Test Coverage Plan:
  * 1. Request Logging Integration
@@ -26,16 +26,23 @@ import request from "supertest"
 import { NotFoundError, ValidationError } from "@/errors"
 import { errorHandler, requestLogger } from "@/middleware"
 
-// Mock logger to capture logs
+// Mock createChildLogger from logger
+const mockChildLoggerInfo = jest.fn()
+const mockChildLogger = {
+	info: mockChildLoggerInfo,
+	error: jest.fn(),
+	warn: jest.fn(),
+	debug: jest.fn()
+}
+
 jest.mock("@/lib/logger", () => ({
+	createChildLogger: jest.fn(() => mockChildLogger),
 	logger: {
 		info: jest.fn(),
 		error: jest.fn(),
 		warn: jest.fn()
 	}
 }))
-
-import { logger } from "@/lib/logger"
 
 describe("Request Logger Middleware Integration", () => {
 	let testApp: express.Application
@@ -58,11 +65,16 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).get("/test")
 
-			expect(logger.info).toHaveBeenCalled()
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("GET")
-			expect(logCall).toContain("/test")
-			expect(logCall).toContain("200")
+			expect(mockChildLoggerInfo).toHaveBeenCalled()
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0]).toMatchObject({
+				method: "GET",
+				path: "/test",
+				statusCode: 200
+			})
+			expect(logCall[1]).toContain("GET")
+			expect(logCall[1]).toContain("/test")
+			expect(logCall[1]).toContain("200")
 		})
 
 		it("should log successful POST requests", async () => {
@@ -72,11 +84,13 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).post("/test").send({ data: "test" })
 
-			expect(logger.info).toHaveBeenCalled()
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("POST")
-			expect(logCall).toContain("/test")
-			expect(logCall).toContain("201")
+			expect(mockChildLoggerInfo).toHaveBeenCalled()
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0]).toMatchObject({
+				method: "POST",
+				path: "/test",
+				statusCode: 201
+			})
 		})
 
 		it("should log failed requests with 4xx status", async () => {
@@ -87,11 +101,13 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).get("/test")
 
-			expect(logger.info).toHaveBeenCalled()
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("GET")
-			expect(logCall).toContain("/test")
-			expect(logCall).toContain("400")
+			expect(mockChildLoggerInfo).toHaveBeenCalled()
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0]).toMatchObject({
+				method: "GET",
+				path: "/test",
+				statusCode: 400
+			})
 		})
 
 		it("should log failed requests with 5xx status", async () => {
@@ -102,11 +118,13 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).get("/test")
 
-			expect(logger.info).toHaveBeenCalled()
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("GET")
-			expect(logCall).toContain("/test")
-			expect(logCall).toContain("500")
+			expect(mockChildLoggerInfo).toHaveBeenCalled()
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0]).toMatchObject({
+				method: "GET",
+				path: "/test",
+				statusCode: 500
+			})
 		})
 	})
 
@@ -160,8 +178,8 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).get("/test")
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("GET")
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].method).toBe("GET")
 		})
 
 		it("should log POST requests", async () => {
@@ -171,8 +189,8 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).post("/test").send({ data: "test" })
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("POST")
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].method).toBe("POST")
 		})
 
 		it("should log PUT requests", async () => {
@@ -182,9 +200,9 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).put("/test/123").send({ data: "test" })
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("PUT")
-			expect(logCall).toContain("/test/123")
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].method).toBe("PUT")
+			expect(logCall[0].path).toBe("/test/123")
 		})
 
 		it("should log PATCH requests", async () => {
@@ -194,9 +212,9 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).patch("/test/456").send({ data: "test" })
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("PATCH")
-			expect(logCall).toContain("/test/456")
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].method).toBe("PATCH")
+			expect(logCall[0].path).toBe("/test/456")
 		})
 
 		it("should log DELETE requests", async () => {
@@ -206,9 +224,9 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).delete("/test/789")
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("DELETE")
-			expect(logCall).toContain("/test/789")
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].method).toBe("DELETE")
+			expect(logCall[0].path).toBe("/test/789")
 		})
 	})
 
@@ -220,8 +238,9 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).get("/test")
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toMatch(/\d+ms/)
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0]).toHaveProperty("duration")
+			expect(typeof logCall[0].duration).toBe("number")
 		})
 
 		it("should track time for slow requests", async () => {
@@ -232,12 +251,8 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).get("/slow")
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			// Should have a duration >= 50ms
-			const durationMatch = logCall.match(/(\d+)ms/)
-			expect(durationMatch).toBeTruthy()
-			const duration = Number.parseInt(durationMatch[1], 10)
-			expect(duration).toBeGreaterThanOrEqual(50)
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].duration).toBeGreaterThanOrEqual(50)
 		})
 	})
 
@@ -249,8 +264,8 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).get("/search?q=test&page=1")
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("/search?q=test&page=1")
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].path).toBe("/search?q=test&page=1")
 		})
 
 		it("should log path parameters", async () => {
@@ -260,8 +275,8 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).get("/users/123")
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("/users/123")
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].path).toBe("/users/123")
 		})
 
 		it("should handle complex URLs", async () => {
@@ -273,8 +288,8 @@ describe("Request Logger Middleware Integration", () => {
 				"/api/v1/users/123/posts?filter=recent&limit=10"
 			)
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain(
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].path).toBe(
 				"/api/v1/users/123/posts?filter=recent&limit=10"
 			)
 		})
@@ -285,9 +300,9 @@ describe("Request Logger Middleware Integration", () => {
 			// No routes defined, should 404
 			await request(testApp).get("/nonexistent")
 
-			expect(logger.info).toHaveBeenCalled()
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("404")
+			expect(mockChildLoggerInfo).toHaveBeenCalled()
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].statusCode).toBe(404)
 		})
 
 		it("should log requests that throw errors", async () => {
@@ -298,9 +313,9 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).get("/error")
 
-			expect(logger.info).toHaveBeenCalled()
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("/error")
+			expect(mockChildLoggerInfo).toHaveBeenCalled()
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].path).toBe("/error")
 		})
 
 		it("should log requests that result in 500 errors", async () => {
@@ -311,9 +326,9 @@ describe("Request Logger Middleware Integration", () => {
 
 			await request(testApp).get("/server-error")
 
-			expect(logger.info).toHaveBeenCalled()
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("500")
+			expect(mockChildLoggerInfo).toHaveBeenCalled()
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0].statusCode).toBe(500)
 		})
 	})
 
@@ -330,13 +345,13 @@ describe("Request Logger Middleware Integration", () => {
 			await request(testApp).get("/test1")
 			await request(testApp).get("/test2")
 
-			expect(logger.info).toHaveBeenCalledTimes(2)
+			expect(mockChildLoggerInfo).toHaveBeenCalledTimes(2)
 
-			const log1 = (logger.info as jest.Mock).mock.calls[0][0]
-			const log2 = (logger.info as jest.Mock).mock.calls[1][0]
+			const log1 = mockChildLoggerInfo.mock.calls[0]
+			const log2 = mockChildLoggerInfo.mock.calls[1]
 
-			expect(log1).toContain("/test1")
-			expect(log2).toContain("/test2")
+			expect(log1[0].path).toBe("/test1")
+			expect(log2[0].path).toBe("/test2")
 		})
 
 		it("should handle concurrent requests", async () => {
@@ -351,7 +366,7 @@ describe("Request Logger Middleware Integration", () => {
 				request(testApp).get("/test")
 			])
 
-			expect(logger.info).toHaveBeenCalledTimes(3)
+			expect(mockChildLoggerInfo).toHaveBeenCalledTimes(3)
 		})
 	})
 })

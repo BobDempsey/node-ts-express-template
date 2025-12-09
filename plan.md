@@ -246,7 +246,7 @@ src/
 
 ### Phase 5: Advanced (Optional)
 
-17. [ ] Upgrade to structured logging (pino)
+17. [x] Upgrade to structured logging (pino)
 18. [ ] Add request ID middleware
 19. [ ] Add rate limiting
 20. [ ] Add graceful shutdown improvements

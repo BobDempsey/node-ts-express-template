@@ -7,7 +7,7 @@
  */
 import { z } from "zod"
 
-import { NODE_ENV_VALUES } from "@/lib/constants"
+import { LOG_LEVEL_VALUES, NODE_ENV_VALUES } from "@/lib/constants"
 import tryParseEnv from "@/lib/try-parse-env"
 
 const EnvSchema = z.object({
@@ -27,7 +27,8 @@ const EnvSchema = z.object({
 			if (!val) return undefined
 			// Support comma-separated origins
 			return val.split(",").map((origin) => origin.trim())
-		})
+		}),
+	LOG_LEVEL: z.enum(LOG_LEVEL_VALUES).optional()
 })
 
 export type EnvSchema = z.infer<typeof EnvSchema>

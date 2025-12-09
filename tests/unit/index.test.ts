@@ -8,6 +8,15 @@ const mockLoggerWarn = jest.fn()
 const mockLoggerError = jest.fn()
 const mockLoggerDebug = jest.fn()
 
+// Mock child logger for request-logger middleware
+const mockChildLoggerInfo = jest.fn()
+const mockChildLogger = {
+	info: mockChildLoggerInfo,
+	error: jest.fn(),
+	warn: jest.fn(),
+	debug: jest.fn()
+}
+
 // Mock the logger before importing index
 jest.mock("@/lib/logger", () => ({
 	logger: {
@@ -15,7 +24,8 @@ jest.mock("@/lib/logger", () => ({
 		warn: mockLoggerWarn,
 		error: mockLoggerError,
 		debug: mockLoggerDebug
-	}
+	},
+	createChildLogger: jest.fn(() => mockChildLogger)
 }))
 
 describe("index.ts - Server Instance", () => {
@@ -381,7 +391,9 @@ describe("index.ts - Server Instance", () => {
 			// Wait for error handler to process
 			await new Promise((resolve) => setTimeout(resolve, 50))
 
+			// Logger now uses structured format: logger.error({ port, err }, message)
 			expect(mockLoggerError).toHaveBeenCalledWith(
+				expect.objectContaining({ err: error }),
 				expect.stringContaining("already in use")
 			)
 			expect(mockExit).toHaveBeenCalledWith(1)
@@ -409,7 +421,9 @@ describe("index.ts - Server Instance", () => {
 			// Wait for error handler to process
 			await new Promise((resolve) => setTimeout(resolve, 50))
 
+			// Logger now uses structured format: logger.error({ err }, message)
 			expect(mockLoggerError).toHaveBeenCalledWith(
+				expect.objectContaining({ err: error }),
 				expect.stringContaining("Server error: Some server error")
 			)
 			expect(mockExit).toHaveBeenCalledWith(1)

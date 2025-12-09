@@ -13,10 +13,10 @@ const server = app.listen(PORT, () => {
 // Handle server errors
 server.on("error", (err: NodeJS.ErrnoException) => {
 	if (err.code === "EADDRINUSE") {
-		logger.error(`❌ Port ${PORT} is already in use`)
+		logger.error({ port: PORT, err }, `Port ${PORT} is already in use`)
 		process.exit(1)
 	}
-	logger.error(`❌ Server error: ${err.message}`)
+	logger.error({ err }, `Server error: ${err.message}`)
 	process.exit(1)
 })
 
