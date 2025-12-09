@@ -3,8 +3,27 @@ import { type Request, type Response, Router } from "express"
 const router = Router()
 
 /**
- * GET /health
- * Basic health check - always returns 200 if the service is running
+ * @openapi
+ * /health:
+ *   get:
+ *     tags:
+ *       - Health
+ *     summary: Basic health check
+ *     description: Returns 200 if the service is running
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
  */
 router.get("/health", (_req: Request, res: Response) => {
 	res.status(200).json({
@@ -14,9 +33,40 @@ router.get("/health", (_req: Request, res: Response) => {
 })
 
 /**
- * GET /ready
- * Readiness check - verifies if the service is ready to accept requests
- * In a real application, this would check database connections, external services, etc.
+ * @openapi
+ * /ready:
+ *   get:
+ *     tags:
+ *       - Health
+ *     summary: Readiness check
+ *     description: Verifies if the service is ready to accept requests. Checks database connections, external services, etc.
+ *     responses:
+ *       200:
+ *         description: Service is ready
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ready
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       503:
+ *         description: Service is not ready
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: not ready
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
  */
 router.get("/ready", (_req: Request, res: Response) => {
 	// TODO: Add actual dependency checks when needed
@@ -37,9 +87,27 @@ router.get("/ready", (_req: Request, res: Response) => {
 })
 
 /**
- * GET /live
- * Liveness check - verifies if the service is alive and should not be restarted
- * Used by Kubernetes and other orchestrators to determine if a pod should be restarted
+ * @openapi
+ * /live:
+ *   get:
+ *     tags:
+ *       - Health
+ *     summary: Liveness check
+ *     description: Verifies if the service is alive. Used by Kubernetes to determine if a pod should be restarted.
+ *     responses:
+ *       200:
+ *         description: Service is alive
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: alive
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
  */
 router.get("/live", (_req: Request, res: Response) => {
 	// If we can respond, we're alive

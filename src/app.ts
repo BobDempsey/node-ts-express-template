@@ -2,6 +2,8 @@ import cors from "cors"
 import dotenv from "dotenv"
 import express, { type Request, type Response } from "express"
 import helmet from "helmet"
+import swaggerUi from "swagger-ui-express"
+import { swaggerSpec } from "@/docs/swagger"
 import { GREETING } from "@/lib/constants"
 import env from "@/lib/env"
 import { errorHandler, requestLogger } from "@/middleware"
@@ -30,6 +32,9 @@ app.use(express.urlencoded({ extended: true }))
 
 // Request logging
 app.use(requestLogger)
+
+// API Documentation
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 // Routes
 app.use(routes)

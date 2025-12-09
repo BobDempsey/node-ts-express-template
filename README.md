@@ -7,6 +7,10 @@
 
 A production-ready Node.js project template with TypeScript and Express.js support.
 
+### Live Demo
+
+Try the live demo at: [https://node-ts-express-template.onrender.com/](https://node-ts-express-template.onrender.com/)
+
 ## Features
 
 - ⚡ **Express.js** - Fast, unopinionated web framework with TypeScript support
@@ -26,6 +30,7 @@ A production-ready Node.js project template with TypeScript and Express.js suppo
 - ✅ **Request Validation** - Built-in Zod-based validation middleware for request body, params, and query
 - 🏥 **Health Check Endpoints** - Built-in /health, /ready, and /live endpoints for monitoring
 - 🔢 **API Versioning** - Organized route structure with v1 API endpoints and example routes
+- 📚 **API Documentation** - Interactive Swagger/OpenAPI documentation at `/docs`
 - ⚡ **Async Handler** - Built-in utility for automatic async error handling
 - 🔄 **Graceful Shutdown** - SIGTERM handling for zero-downtime deployments
 - 🐳 **Docker Ready** - Multi-stage Dockerfile and docker-compose.yml included for containerized deployments
@@ -106,6 +111,8 @@ node-ts-express-template/
 │   │   └── v1/             # API v1 routes
 │   │       ├── index.ts    # v1 route aggregator
 │   │       └── example.routes.ts # Example v1 endpoints
+│   ├── docs/
+│   │   └── swagger.ts      # Swagger/OpenAPI configuration
 │   ├── utils/
 │   │   ├── index.ts        # Utility exports
 │   │   └── async-handler.ts # Async route error wrapper
@@ -975,6 +982,62 @@ curl http://localhost:3000/live
 
 These endpoints are defined in `src/routes/health.routes.ts` and can be customized to check database connections, external dependencies, or other service-specific requirements.
 
+#### API Documentation (Swagger)
+
+This template includes interactive API documentation powered by Swagger/OpenAPI. Access the documentation at `http://localhost:3000/docs` when the server is running.
+
+**Features:**
+
+- **Interactive UI** - Test API endpoints directly from your browser
+- **Auto-Generated** - Documentation generated from JSDoc annotations in route files
+- **OpenAPI 3.0** - Standard specification for API documentation
+- **Try It Out** - Execute requests and see responses in real-time
+
+**Viewing Documentation:**
+
+```bash
+# Start the server
+npm run dev
+
+# Open in browser
+http://localhost:3000/docs
+```
+
+**Adding Documentation to New Routes:**
+
+Add `@openapi` JSDoc annotations to your route handlers:
+
+```typescript
+/**
+ * @openapi
+ * /api/v1/users:
+ *   get:
+ *     tags:
+ *       - Users
+ *     summary: Get all users
+ *     description: Returns a list of all users
+ *     responses:
+ *       200:
+ *         description: List of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ */
+router.get("/users", (req, res) => {
+  res.json([{ id: "1", name: "John" }])
+})
+```
+
+The Swagger configuration is in `src/docs/swagger.ts` and automatically scans route files in `src/routes/` for `@openapi` annotations.
+
 ### Building
 
 Compile TypeScript to JavaScript:
@@ -1759,8 +1822,11 @@ If you don't want to use Codecov, the workflow will continue without failing.
 
 - **express** - Fast, unopinionated, minimalist web framework for Node.js
 - **helmet** - Security middleware for setting HTTP headers
+- **cors** - Cross-Origin Resource Sharing middleware
 - **dotenv** - Load environment variables from `.env` files
 - **zod** - TypeScript-first schema validation for environment variables
+- **swagger-ui-express** - Serve auto-generated Swagger UI for API documentation
+- **swagger-jsdoc** - Generate OpenAPI specification from JSDoc comments
 
 ### Development Dependencies
 

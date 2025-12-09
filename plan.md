@@ -240,9 +240,9 @@ src/
 
 ### Phase 4: Documentation (Lower Priority)
 
-14. [ ] Add OpenAPI/Swagger documentation
-15. [ ] Add API endpoint examples
-16. [ ] Update README with new features
+14. [x] Add OpenAPI/Swagger documentation
+15. [x] Add API endpoint examples
+16. [x] Update README with new features
 
 ### Phase 5: Advanced (Optional)
 

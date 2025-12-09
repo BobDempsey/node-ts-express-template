@@ -170,6 +170,15 @@ GET {{baseUrl}}/
 Origin: http://trusted-origin.com
 
 ###############################################################################
+# API Documentation (Swagger/OpenAPI)
+###############################################################################
+
+### GET /docs - Swagger UI (200 OK)
+# Interactive API documentation served by swagger-ui-express
+# Open in browser for best experience: http://localhost:3000/docs
+GET {{baseUrl}}/docs/
+
+###############################################################################
 # Edge Cases
 ###############################################################################
 
