@@ -28,6 +28,11 @@ jest.mock("@/lib/logger", () => ({
 	createChildLogger: jest.fn(() => mockChildLogger)
 }))
 
+// Mock the rate-limiter to avoid express-rate-limit validation issues in tests
+jest.mock("@/middleware/rate-limiter", () => ({
+	rateLimiter: (_req: unknown, _res: unknown, next: () => void) => next()
+}))
+
 describe("index.ts - Server Instance", () => {
 	let server: Server
 	let cleanup: (() => void) | undefined

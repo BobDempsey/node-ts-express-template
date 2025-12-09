@@ -28,7 +28,24 @@ const EnvSchema = z.object({
 			// Support comma-separated origins
 			return val.split(",").map((origin) => origin.trim())
 		}),
-	LOG_LEVEL: z.enum(LOG_LEVEL_VALUES).optional()
+	LOG_LEVEL: z.enum(LOG_LEVEL_VALUES).optional(),
+	// Rate limiting configuration
+	RATE_LIMIT_WINDOW_MS: z
+		.string()
+		.default("60000")
+		.transform((val) => {
+			const parsed = Number.parseInt(val, 10)
+			return Number.isNaN(parsed) ? 60000 : parsed
+		})
+		.optional(),
+	RATE_LIMIT_MAX_REQUESTS: z
+		.string()
+		.default("100")
+		.transform((val) => {
+			const parsed = Number.parseInt(val, 10)
+			return Number.isNaN(parsed) ? 100 : parsed
+		})
+		.optional()
 })
 
 export type EnvSchema = z.infer<typeof EnvSchema>

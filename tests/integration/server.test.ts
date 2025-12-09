@@ -1,7 +1,14 @@
 import request from "supertest"
+import { GREETING } from "@/lib/constants"
+
+// Mock the rate-limiter to avoid express-rate-limit validation issues in tests
+jest.mock("@/middleware/rate-limiter", () => ({
+	rateLimiter: (_req: unknown, _res: unknown, next: () => void) => next()
+}))
+
+// Import after mock
 import { app } from "@/app"
 import server from "@/index"
-import { GREETING } from "@/lib/constants"
 
 describe("Express Server Integration Tests", () => {
 	afterAll((done) => {
