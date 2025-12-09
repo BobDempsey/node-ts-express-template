@@ -54,7 +54,15 @@ const EnvSchema = z.object({
 			const parsed = Number.parseInt(val, 10)
 			return Number.isNaN(parsed) ? 30000 : parsed
 		})
-		.optional()
+		.optional(),
+	// JWT Authentication (optional - enable with ENABLE_JWT_AUTH=true)
+	ENABLE_JWT_AUTH: z
+		.string()
+		.default("false")
+		.transform((val) => val === "true"),
+	JWT_SECRET: z.string().min(32).optional(),
+	JWT_EXPIRY: z.string().default("1h"),
+	JWT_REFRESH_EXPIRY: z.string().default("7d")
 })
 
 export type EnvSchema = z.infer<typeof EnvSchema>
