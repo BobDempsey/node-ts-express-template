@@ -249,7 +249,7 @@ src/
 17. [x] Upgrade to structured logging (pino)
 18. [x] Add request ID middleware (included in request-logger with pino upgrade)
 19. [x] Add rate limiting
-20. [ ] Add graceful shutdown improvements
+20. [x] Add graceful shutdown improvements
 
 ---
 

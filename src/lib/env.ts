@@ -45,6 +45,15 @@ const EnvSchema = z.object({
 			const parsed = Number.parseInt(val, 10)
 			return Number.isNaN(parsed) ? 100 : parsed
 		})
+		.optional(),
+	// Graceful shutdown timeout in milliseconds
+	SHUTDOWN_TIMEOUT_MS: z
+		.string()
+		.default("30000")
+		.transform((val) => {
+			const parsed = Number.parseInt(val, 10)
+			return Number.isNaN(parsed) ? 30000 : parsed
+		})
 		.optional()
 })
 

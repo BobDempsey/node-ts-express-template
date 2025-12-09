@@ -7,6 +7,7 @@ const mockLoggerInfo = jest.fn()
 const mockLoggerWarn = jest.fn()
 const mockLoggerError = jest.fn()
 const mockLoggerDebug = jest.fn()
+const mockLoggerFatal = jest.fn()
 
 // Mock child logger for request-logger middleware
 const mockChildLoggerInfo = jest.fn()
@@ -23,7 +24,8 @@ jest.mock("@/lib/logger", () => ({
 		info: mockLoggerInfo,
 		warn: mockLoggerWarn,
 		error: mockLoggerError,
-		debug: mockLoggerDebug
+		debug: mockLoggerDebug,
+		fatal: mockLoggerFatal
 	},
 	createChildLogger: jest.fn(() => mockChildLogger)
 }))
@@ -46,6 +48,7 @@ describe("index.ts - Server Instance", () => {
 		mockLoggerWarn.mockClear()
 		mockLoggerError.mockClear()
 		mockLoggerDebug.mockClear()
+		mockLoggerFatal.mockClear()
 	})
 
 	afterEach(async () => {
@@ -242,7 +245,7 @@ describe("index.ts - Server Instance", () => {
 				expect.stringContaining("SIGTERM received, shutting down gracefully")
 			)
 			expect(mockLoggerInfo).toHaveBeenCalledWith(
-				expect.stringContaining("Process terminated")
+				expect.stringContaining("Server closed, all connections finished")
 			)
 
 			// Verify process.exit was called with 0
@@ -252,6 +255,187 @@ describe("index.ts - Server Instance", () => {
 			mockExit.mockRestore()
 
 			// Server should be closed, so set to null to prevent afterEach cleanup
+			server = null as unknown as Server
+		})
+
+		it("should handle SIGINT and close server gracefully", async () => {
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			const mockExit = jest.spyOn(process, "exit").mockImplementation()
+
+			await new Promise((resolve) => setTimeout(resolve, 100))
+
+			process.emit("SIGINT")
+
+			await new Promise((resolve) => setTimeout(resolve, 200))
+
+			expect(mockLoggerInfo).toHaveBeenCalledWith(
+				expect.stringContaining("SIGINT received, shutting down gracefully")
+			)
+			expect(mockExit).toHaveBeenCalledWith(0)
+
+			mockExit.mockRestore()
+			server = null as unknown as Server
+		})
+
+		it("should handle SIGHUP and close server gracefully", async () => {
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			const mockExit = jest.spyOn(process, "exit").mockImplementation()
+
+			await new Promise((resolve) => setTimeout(resolve, 100))
+
+			process.emit("SIGHUP")
+
+			await new Promise((resolve) => setTimeout(resolve, 200))
+
+			expect(mockLoggerInfo).toHaveBeenCalledWith(
+				expect.stringContaining("SIGHUP received, shutting down gracefully")
+			)
+			expect(mockExit).toHaveBeenCalledWith(0)
+
+			mockExit.mockRestore()
+			server = null as unknown as Server
+		})
+
+		it("should prevent multiple shutdown attempts", async () => {
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			const mockExit = jest.spyOn(process, "exit").mockImplementation()
+
+			await new Promise((resolve) => setTimeout(resolve, 100))
+
+			// Emit multiple signals
+			process.emit("SIGTERM")
+			process.emit("SIGTERM")
+			process.emit("SIGINT")
+
+			await new Promise((resolve) => setTimeout(resolve, 200))
+
+			// Should log warning for duplicate signals
+			expect(mockLoggerWarn).toHaveBeenCalledWith(
+				expect.stringContaining("shutdown already in progress")
+			)
+
+			mockExit.mockRestore()
+			server = null as unknown as Server
+		})
+
+		it("should export getShutdownState and resetShutdownState functions", async () => {
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			expect(typeof indexModule.getShutdownState).toBe("function")
+			expect(typeof indexModule.resetShutdownState).toBe("function")
+			expect(indexModule.getShutdownState()).toBe(false)
+		})
+
+		it("should handle uncaughtException and trigger shutdown", async () => {
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			const mockExit = jest.spyOn(process, "exit").mockImplementation()
+
+			await new Promise((resolve) => setTimeout(resolve, 100))
+
+			const testError = new Error("Test uncaught exception")
+			process.emit("uncaughtException", testError)
+
+			await new Promise((resolve) => setTimeout(resolve, 200))
+
+			expect(mockLoggerFatal).toHaveBeenCalledWith(
+				expect.objectContaining({ err: testError }),
+				"Uncaught exception, shutting down"
+			)
+			expect(mockExit).toHaveBeenCalled()
+
+			mockExit.mockRestore()
+			server = null as unknown as Server
+		})
+
+		it("should handle unhandledRejection and trigger shutdown", async () => {
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			const mockExit = jest.spyOn(process, "exit").mockImplementation()
+
+			await new Promise((resolve) => setTimeout(resolve, 100))
+
+			const testReason = new Error("Test unhandled rejection")
+			const testPromise = Promise.reject(testReason)
+			// Prevent actual unhandled rejection
+			testPromise.catch(() => {})
+
+			process.emit("unhandledRejection", testReason, testPromise)
+
+			await new Promise((resolve) => setTimeout(resolve, 200))
+
+			expect(mockLoggerFatal).toHaveBeenCalledWith(
+				expect.objectContaining({ reason: testReason }),
+				"Unhandled promise rejection, shutting down"
+			)
+			expect(mockExit).toHaveBeenCalled()
+
+			mockExit.mockRestore()
+			server = null as unknown as Server
+		})
+
+		it("should force exit after shutdown timeout if server.close hangs", async () => {
+			// Set a very short timeout for testing
+			process.env.SHUTDOWN_TIMEOUT_MS = "150"
+
+			jest.resetModules()
+			const indexModule = await import("@/index")
+			server = indexModule.default
+			cleanup = indexModule.cleanup
+
+			const mockExit = jest.spyOn(process, "exit").mockImplementation()
+
+			await new Promise((resolve) => setTimeout(resolve, 100))
+
+			// Mock server.close to never call its callback (simulating hanging connections)
+			const originalClose = server.close.bind(server)
+			server.close = jest.fn(() => {
+				// Don't call the callback - simulating a hang
+				return server
+			}) as typeof server.close
+
+			// Trigger shutdown
+			process.emit("SIGTERM")
+
+			// Wait longer than the timeout (150ms + buffer)
+			await new Promise((resolve) => setTimeout(resolve, 300))
+
+			// Should have logged timeout error and force exited
+			expect(mockLoggerError).toHaveBeenCalledWith(
+				expect.stringContaining("Graceful shutdown timed out")
+			)
+			expect(mockExit).toHaveBeenCalledWith(1)
+
+			// Restore and actually close the server
+			mockExit.mockRestore()
+			server.close = originalClose
+			await new Promise<void>((resolve, reject) => {
+				server.close((err) => {
+					if (err) reject(err)
+					else resolve()
+				})
+			})
 			server = null as unknown as Server
 		})
 	})
