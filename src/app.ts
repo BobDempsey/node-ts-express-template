@@ -6,7 +6,12 @@ import swaggerUi from "swagger-ui-express"
 import { swaggerSpec } from "@/docs/swagger"
 import { GREETING } from "@/lib/constants"
 import env from "@/lib/env"
-import { errorHandler, rateLimiter, requestLogger } from "@/middleware"
+import {
+	errorHandler,
+	rateLimiter,
+	requestLogger,
+	requireAuth
+} from "@/middleware"
 import routes from "@/routes"
 
 dotenv.config({ quiet: true })
@@ -35,6 +40,15 @@ app.use(requestLogger)
 
 // Rate limiting (skips /health, /ready, /live, /docs)
 app.use(rateLimiter)
+
+// JWT Authentication (optional - enable with ENABLE_JWT_AUTH=true)
+if (env.ENABLE_JWT_AUTH) {
+	app.use(
+		requireAuth({
+			exclude: ["/health", "/ready", "/live", "/docs", "/api/v1/auth", "/"]
+		})
+	)
+}
 
 // API Documentation
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec))
