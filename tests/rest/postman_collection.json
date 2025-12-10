@@ -1,0 +1,682 @@
+{
+	"info": {
+		"_postman_id": "node-ts-express-template",
+		"name": "Node TS Express Template",
+		"description": "API collection for Node.js TypeScript Express template.\n\nStart the dev server first: `npm run dev`\n\nFor JWT Authentication, set these environment variables:\n- ENABLE_JWT_AUTH=true\n- JWT_SECRET=your-super-secret-key-at-least-32-chars\n\nTest credentials:\n- Email: test@example.com\n- Password: password123",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health Check Endpoints",
+			"item": [
+				{
+					"name": "GET /health - Basic health check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						},
+						"description": "Returns service health status with timestamp.\n\nExpected response: {\"status\": \"ok\", \"timestamp\": \"...\"}"
+					}
+				},
+				{
+					"name": "GET /ready - Readiness check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/ready",
+							"host": ["{{baseUrl}}"],
+							"path": ["ready"]
+						},
+						"description": "Verifies if service is ready to accept requests.\nUsed by load balancers and orchestrators.\n\nExpected response: {\"status\": \"ready\", \"timestamp\": \"...\"}"
+					}
+				},
+				{
+					"name": "GET /live - Liveness check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/live",
+							"host": ["{{baseUrl}}"],
+							"path": ["live"]
+						},
+						"description": "Verifies if service is alive and functioning.\nUsed by Kubernetes and other orchestrators for pod health.\n\nExpected response: {\"status\": \"alive\", \"timestamp\": \"...\"}"
+					}
+				}
+			]
+		},
+		{
+			"name": "Basic Requests",
+			"item": [
+				{
+					"name": "GET root - Basic request",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "text/plain"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "Basic request to root - should return the greeting message."
+					}
+				},
+				{
+					"name": "GET root - With custom header",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "text/plain"
+							},
+							{
+								"key": "X-Custom-Header",
+								"value": "TestValue"
+							},
+							{
+								"key": "User-Agent",
+								"value": "Postman-REST-Client"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						}
+					}
+				},
+				{
+					"name": "GET undefined route - Returns 404",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/test",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "test"]
+						},
+						"description": "Express returns 404 for routes that aren't defined.\n\nExpected response: {\"error\": \"Not Found\"}"
+					}
+				}
+			]
+		},
+		{
+			"name": "POST Requests (404 - no routes defined)",
+			"item": [
+				{
+					"name": "POST root - JSON payload (404)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"hello\",\n  \"timestamp\": \"2025-12-04T00:00:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "Only GET / is defined, so POST returns 404."
+					}
+				},
+				{
+					"name": "POST root - Form data (404)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "name",
+									"value": "test"
+								},
+								{
+									"key": "value",
+									"value": "123"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "Body will be parsed by express.urlencoded() middleware, but route isn't defined, so returns 404."
+					}
+				},
+				{
+					"name": "POST to API endpoint - JSON payload (404)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users"]
+						},
+						"description": "Example of what a future API route might look like."
+					}
+				}
+			]
+		},
+		{
+			"name": "Other HTTP Methods (404)",
+			"item": [
+				{
+					"name": "PUT request (404)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": 1,\n  \"updated\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/resource",
+							"host": ["{{baseUrl}}"],
+							"path": ["resource"]
+						}
+					}
+				},
+				{
+					"name": "DELETE request (404)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/resource/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["resource", "1"]
+						}
+					}
+				},
+				{
+					"name": "PATCH request (404)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"field\": \"updated value\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/resource/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["resource", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Security Headers (Helmet)",
+			"item": [
+				{
+					"name": "GET root - Verify security headers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "Check response headers to see Helmet's security headers in action:\n- Content-Security-Policy\n- X-Content-Type-Options: nosniff\n- X-Frame-Options: SAMEORIGIN\n- Strict-Transport-Security\n- X-DNS-Prefetch-Control: off\n- Referrer-Policy: no-referrer"
+					}
+				},
+				{
+					"name": "GET any route - Security headers applied globally",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/nonexistent",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "nonexistent"]
+						},
+						"description": "Helmet middleware applies security headers to all routes, including 404s."
+					}
+				}
+			]
+		},
+		{
+			"name": "CORS",
+			"item": [
+				{
+					"name": "GET with Origin header - Check CORS response",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Origin",
+								"value": "http://example.com"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "Check for CORS headers in response:\n- Access-Control-Allow-Origin\n- Access-Control-Allow-Credentials: true\n- Access-Control-Expose-Headers"
+					}
+				},
+				{
+					"name": "OPTIONS preflight request",
+					"request": {
+						"method": "OPTIONS",
+						"header": [
+							{
+								"key": "Origin",
+								"value": "http://example.com"
+							},
+							{
+								"key": "Access-Control-Request-Method",
+								"value": "POST"
+							},
+							{
+								"key": "Access-Control-Request-Headers",
+								"value": "Content-Type, Authorization"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "Browsers send OPTIONS request before actual cross-origin requests.\nCheck for:\n- Access-Control-Allow-Methods\n- Access-Control-Allow-Headers\n- Access-Control-Max-Age"
+					}
+				},
+				{
+					"name": "POST with Origin - CORS actual request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Origin",
+								"value": "http://example.com"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"test\": \"data\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "After successful preflight, browser sends actual request. Response will include CORS headers."
+					}
+				},
+				{
+					"name": "GET with localhost origin",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Origin",
+								"value": "http://localhost:3000"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "To restrict origins in production, set CORS_ORIGIN env variable.\nExample: CORS_ORIGIN=\"http://localhost:3000,https://myapp.com\""
+					}
+				}
+			]
+		},
+		{
+			"name": "API Documentation",
+			"item": [
+				{
+					"name": "GET /docs - Swagger UI",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/docs/",
+							"host": ["{{baseUrl}}"],
+							"path": ["docs", ""]
+						},
+						"description": "Interactive API documentation served by swagger-ui-express.\nOpen in browser for best experience: http://localhost:3000/docs"
+					}
+				}
+			]
+		},
+		{
+			"name": "Edge Cases",
+			"item": [
+				{
+					"name": "GET with Accept application/json",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "Express res.send() will auto-detect content type."
+					}
+				},
+				{
+					"name": "Large payload POST (404)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"data\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\",\n  \"items\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],\n  \"nested\": {\n    \"level1\": {\n      \"level2\": {\n        \"level3\": \"deep value\"\n      }\n    }\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "Middleware will parse the JSON body successfully, but route isn't defined, so returns 404."
+					}
+				}
+			]
+		},
+		{
+			"name": "JWT Authentication",
+			"description": "JWT Authentication endpoints (requires ENABLE_JWT_AUTH=true).\n\nTo enable JWT auth, set these environment variables:\n- ENABLE_JWT_AUTH=true\n- JWT_SECRET=your-super-secret-key-at-least-32-chars\n\nTest credentials (stub user service):\n- Email: test@example.com\n- Password: password123",
+			"item": [
+				{
+					"name": "POST /auth/login - Login with credentials",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('accessToken', jsonData.accessToken);",
+									"    pm.collectionVariables.set('refreshToken', jsonData.refreshToken);",
+									"    console.log('Tokens saved to collection variables');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "login"]
+						},
+						"description": "Returns access token, refresh token, and user info.\n\nExpected response: {\"accessToken\": \"...\", \"refreshToken\": \"...\", \"user\": {...}}\n\nNote: This request automatically saves the tokens to collection variables for use in other requests."
+					}
+				},
+				{
+					"name": "POST /auth/login - Invalid credentials (401)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "login"]
+						},
+						"description": "Returns error when credentials are wrong."
+					}
+				},
+				{
+					"name": "POST /auth/refresh - Refresh access token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('accessToken', jsonData.accessToken);",
+									"    console.log('New access token saved to collection variables');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/refresh",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "refresh"]
+						},
+						"description": "Exchange a valid refresh token for a new access token.\n\nNote: Uses the refreshToken from login response (stored in collection variables)."
+					}
+				},
+				{
+					"name": "GET /auth/me - Get current user",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "me"]
+						},
+						"description": "Returns the authenticated user's information.\n\nNote: Uses the accessToken from login response (stored in collection variables)."
+					}
+				},
+				{
+					"name": "GET /auth/me - Without token (401)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "me"]
+						},
+						"description": "Returns error when no token is provided."
+					}
+				}
+			]
+		},
+		{
+			"name": "API v1 Routes",
+			"item": [
+				{
+					"name": "GET /api/v1/ - v1 API root",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "text/plain"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", ""]
+						},
+						"description": "Returns the greeting message."
+					}
+				},
+				{
+					"name": "GET /api/v1/example - Example endpoint",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/example",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "example"]
+						},
+						"description": "Returns a JSON response with example data.\n\nExpected response: {\"message\": \"...\", \"version\": \"v1\", \"timestamp\": \"...\"}"
+					}
+				},
+				{
+					"name": "GET /api/v1/async-example - Async example",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/async-example",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "async-example"]
+						},
+						"description": "Demonstrates asyncHandler usage for async route handlers.\n\nExpected response: {\"message\": \"...\", \"version\": \"v1\", \"timestamp\": \"...\", \"description\": \"...\"}"
+					}
+				},
+				{
+					"name": "GET /api/v1/async-error-example - Async error (500)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/async-error-example",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "async-error-example"]
+						},
+						"description": "Demonstrates error handling with asyncHandler.\nThis route intentionally throws an error to show error middleware in action.\n\nExpected response: {\"error\": \"Example async error - caught by asyncHandler\"}"
+					}
+				},
+				{
+					"name": "GET /api/v1/nonexistent - Undefined route (404)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/nonexistent",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "nonexistent"]
+						},
+						"description": "Should return 404 for routes not defined under v1."
+					}
+				}
+			]
+		}
+	]
+}
