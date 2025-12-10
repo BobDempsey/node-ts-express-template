@@ -206,6 +206,58 @@ Content-Type: application/json
 }
 
 ###############################################################################
+# JWT Authentication (requires ENABLE_JWT_AUTH=true)
+###############################################################################
+# To enable JWT auth, set these environment variables:
+#   ENABLE_JWT_AUTH=true
+#   JWT_SECRET=your-super-secret-key-at-least-32-chars
+#
+# Test credentials (stub user service):
+#   Email: test@example.com
+#   Password: password123
+
+### POST /api/v1/auth/login - Login with credentials (200 OK)
+# Returns access token, refresh token, and user info
+# Expected response: {"accessToken": "...", "refreshToken": "...", "user": {...}}
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+### POST /api/v1/auth/login - Invalid credentials (401 Unauthorized)
+# Returns error when credentials are wrong
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "wrongpassword"
+}
+
+### POST /api/v1/auth/refresh - Refresh access token (200 OK)
+# Exchange a valid refresh token for a new access token
+# Replace <REFRESH_TOKEN> with the refreshToken from login response
+POST {{baseUrl}}/api/v1/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "<REFRESH_TOKEN>"
+}
+
+### GET /api/v1/auth/me - Get current user (200 OK)
+# Returns the authenticated user's information
+# Replace <ACCESS_TOKEN> with the accessToken from login response
+GET {{baseUrl}}/api/v1/auth/me
+Authorization: Bearer <ACCESS_TOKEN>
+
+### GET /api/v1/auth/me - Without token (401 Unauthorized)
+# Returns error when no token is provided
+GET {{baseUrl}}/api/v1/auth/me
+
+###############################################################################
 # API v1 Routes
 ###############################################################################
 
