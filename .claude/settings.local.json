@@ -14,7 +14,8 @@
 			"Bash(taskkill:*)",
 			"Bash(npm run lint)",
 			"Bash(npx biome lint:*)",
-			"Bash(npx biome check:*)"
+			"Bash(npx biome check:*)",
+			"Bash(npm run test:unit:*)"
 		],
 		"deny": [],
 		"ask": []

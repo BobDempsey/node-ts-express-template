@@ -1,5 +1,5 @@
 /**
- * Unit Tests for Request Logger Middleware
+ * Unit Tests for Request Logger Middleware (Pino-based)
  *
  * Test Coverage Plan:
  * 1. Request ID Generation
@@ -7,20 +7,17 @@
  *    - Should add request ID to response header
  *    - Should add request ID to request object
  *
- * 2. Response Time Tracking
+ * 2. Child Logger Creation
+ *    - Should create child logger with requestId binding
+ *    - Should attach child logger to request object
+ *
+ * 3. Response Time Tracking
  *    - Should calculate response duration
- *    - Should include duration in log output
+ *    - Should include duration in structured log
  *
- * 3. Logging Format
- *    - Should use JSON format in production
- *    - Should use human-readable format in development
- *    - Should include method, path, status code, and duration
- *    - Should include request ID
- *
- * 4. Status Code Emoji
- *    - Should use ✅ for 2xx status codes
- *    - Should use ⚠️ for 4xx status codes
- *    - Should use ❌ for 5xx status codes
+ * 4. Structured Logging
+ *    - Should log with structured metadata (method, path, statusCode, duration)
+ *    - Should include userAgent and IP in logs
  *
  * 5. Middleware Behavior
  *    - Should call next() to continue middleware chain
@@ -30,8 +27,17 @@
 import type { NextFunction, Request, Response } from "express"
 import { requestLogger } from "@/middleware"
 
-// Mock logger
+// Mock createChildLogger from logger
+const mockChildLoggerInfo = jest.fn()
+const mockChildLogger = {
+	info: mockChildLoggerInfo,
+	error: jest.fn(),
+	warn: jest.fn(),
+	debug: jest.fn()
+}
+
 jest.mock("@/lib/logger", () => ({
+	createChildLogger: jest.fn(() => mockChildLogger),
 	logger: {
 		info: jest.fn(),
 		error: jest.fn(),
@@ -39,20 +45,12 @@ jest.mock("@/lib/logger", () => ({
 	}
 }))
 
-// Mock env
-jest.mock("@/lib/env", () => ({
-	default: {
-		NODE_ENV: "test"
-	}
-}))
-
-import env from "@/lib/env"
-import { logger } from "@/lib/logger"
-
 // Mock crypto randomUUID
 jest.mock("node:crypto", () => ({
 	randomUUID: jest.fn(() => "test-uuid-1234")
 }))
+
+import { createChildLogger } from "@/lib/logger"
 
 describe("requestLogger middleware", () => {
 	let mockRequest: Partial<Request>
@@ -60,19 +58,17 @@ describe("requestLogger middleware", () => {
 	let mockNext: NextFunction
 	let setHeaderMock: jest.Mock
 	let onMock: jest.Mock
-	let consoleLogSpy: jest.SpyInstance
 
 	beforeEach(() => {
 		// Reset mocks before each test
 		jest.clearAllMocks()
 
-		// Setup console.log spy
-		consoleLogSpy = jest.spyOn(console, "log").mockImplementation()
-
 		// Setup mock request
 		mockRequest = {
 			method: "GET",
-			originalUrl: "/test"
+			originalUrl: "/test",
+			get: jest.fn().mockReturnValue("test-user-agent"),
+			ip: "127.0.0.1"
 		}
 
 		// Setup mock response
@@ -86,10 +82,6 @@ describe("requestLogger middleware", () => {
 
 		// Setup mock next function
 		mockNext = jest.fn()
-	})
-
-	afterEach(() => {
-		consoleLogSpy.mockRestore()
 	})
 
 	describe("Request ID Generation", () => {
@@ -120,6 +112,24 @@ describe("requestLogger middleware", () => {
 		})
 	})
 
+	describe("Child Logger Creation", () => {
+		it("should create child logger with requestId binding", () => {
+			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
+
+			expect(createChildLogger).toHaveBeenCalledWith({
+				requestId: "test-uuid-1234"
+			})
+		})
+
+		it("should attach child logger to request object", () => {
+			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
+
+			expect(
+				(mockRequest as Request & { log: typeof mockChildLogger }).log
+			).toBe(mockChildLogger)
+		})
+	})
+
 	describe("Middleware Behavior", () => {
 		it("should call next() to continue middleware chain", () => {
 			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
@@ -134,142 +144,66 @@ describe("requestLogger middleware", () => {
 		})
 	})
 
-	describe("Logging Format - Development", () => {
-		beforeEach(() => {
-			;(env as { NODE_ENV: string }).NODE_ENV = "development"
-		})
-
-		it("should use human-readable format in development", () => {
-			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
-
-			// Trigger the finish event
-			const finishCallback = onMock.mock.calls[0][1]
-			finishCallback()
-
-			expect(logger.info).toHaveBeenCalled()
-			expect(consoleLogSpy).not.toHaveBeenCalled()
-		})
-
-		it("should include method, path, status code, and duration", () => {
+	describe("Structured Logging", () => {
+		it("should log with structured metadata on finish", () => {
 			mockRequest.method = "POST"
 			mockRequest.originalUrl = "/api/users"
 			mockResponse.statusCode = 201
 
 			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
 
+			// Trigger the finish event
 			const finishCallback = onMock.mock.calls[0][1]
 			finishCallback()
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("POST")
-			expect(logCall).toContain("/api/users")
-			expect(logCall).toContain("201")
-			expect(logCall).toMatch(/\d+ms/)
-			expect(logCall).toContain("[test-uuid-1234]")
+			expect(mockChildLoggerInfo).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "POST",
+					path: "/api/users",
+					statusCode: 201,
+					duration: expect.any(Number),
+					userAgent: "test-user-agent",
+					ip: "127.0.0.1"
+				}),
+				expect.stringContaining("POST /api/users 201")
+			)
 		})
 
-		it("should use ✅ emoji for 2xx status codes", () => {
-			mockResponse.statusCode = 200
+		it("should include duration in structured log", () => {
+			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
+
+			const finishCallback = onMock.mock.calls[0][1]
+			finishCallback()
+
+			const logCall = mockChildLoggerInfo.mock.calls[0]
+			expect(logCall[0]).toHaveProperty("duration")
+			expect(typeof logCall[0].duration).toBe("number")
+		})
+
+		it("should include userAgent in logs", () => {
+			mockRequest.get = jest.fn().mockReturnValue("Mozilla/5.0")
 
 			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
 
 			const finishCallback = onMock.mock.calls[0][1]
 			finishCallback()
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("✅")
+			expect(mockChildLoggerInfo.mock.calls[0][0].userAgent).toBe("Mozilla/5.0")
 		})
 
-		it("should use ⚠️ emoji for 4xx status codes", () => {
-			mockResponse.statusCode = 404
+		it("should include IP address in logs", () => {
+			;(mockRequest as { ip: string }).ip = "192.168.1.1"
 
 			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
 
 			const finishCallback = onMock.mock.calls[0][1]
 			finishCallback()
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("⚠️")
-		})
-
-		it("should use ❌ emoji for 5xx status codes", () => {
-			mockResponse.statusCode = 500
-
-			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
-
-			const finishCallback = onMock.mock.calls[0][1]
-			finishCallback()
-
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("❌")
-		})
-	})
-
-	describe("Logging Format - Production", () => {
-		beforeEach(() => {
-			;(env as { NODE_ENV: string }).NODE_ENV = "production"
-		})
-
-		it("should use JSON format in production", () => {
-			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
-
-			const finishCallback = onMock.mock.calls[0][1]
-			finishCallback()
-
-			expect(consoleLogSpy).toHaveBeenCalled()
-			expect(logger.info).not.toHaveBeenCalled()
-
-			const loggedData = consoleLogSpy.mock.calls[0][0]
-			const parsed = JSON.parse(loggedData)
-
-			expect(parsed).toHaveProperty("requestId", "test-uuid-1234")
-			expect(parsed).toHaveProperty("method", "GET")
-			expect(parsed).toHaveProperty("path", "/test")
-			expect(parsed).toHaveProperty("statusCode", 200)
-			expect(parsed).toHaveProperty("duration")
-			expect(parsed).toHaveProperty("timestamp")
-		})
-
-		it("should include all required fields in JSON format", () => {
-			mockRequest.method = "PUT"
-			mockRequest.originalUrl = "/api/items/123"
-			mockResponse.statusCode = 204
-
-			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
-
-			const finishCallback = onMock.mock.calls[0][1]
-			finishCallback()
-
-			const loggedData = consoleLogSpy.mock.calls[0][0]
-			const parsed = JSON.parse(loggedData)
-
-			expect(parsed.method).toBe("PUT")
-			expect(parsed.path).toBe("/api/items/123")
-			expect(parsed.statusCode).toBe(204)
-			expect(typeof parsed.duration).toBe("number")
-			expect(typeof parsed.timestamp).toBe("string")
-		})
-
-		it("should have valid ISO timestamp in JSON format", () => {
-			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
-
-			const finishCallback = onMock.mock.calls[0][1]
-			finishCallback()
-
-			const loggedData = consoleLogSpy.mock.calls[0][0]
-			const parsed = JSON.parse(loggedData)
-
-			// Verify it's a valid ISO timestamp
-			const timestamp = new Date(parsed.timestamp)
-			expect(timestamp.toISOString()).toBe(parsed.timestamp)
+			expect(mockChildLoggerInfo.mock.calls[0][0].ip).toBe("192.168.1.1")
 		})
 	})
 
 	describe("Response Time Tracking", () => {
-		beforeEach(() => {
-			;(env as { NODE_ENV: string }).NODE_ENV = "development"
-		})
-
 		it("should calculate response duration", () => {
 			const originalDateNow = Date.now
 			let currentTime = 1000
@@ -284,8 +218,7 @@ describe("requestLogger middleware", () => {
 			const finishCallback = onMock.mock.calls[0][1]
 			finishCallback()
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("50ms")
+			expect(mockChildLoggerInfo.mock.calls[0][0].duration).toBe(50)
 
 			Date.now = originalDateNow
 		})
@@ -304,18 +237,13 @@ describe("requestLogger middleware", () => {
 			const finishCallback = onMock.mock.calls[0][1]
 			finishCallback()
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("123ms")
+			expect(mockChildLoggerInfo.mock.calls[0][0].duration).toBe(123)
 
 			Date.now = originalDateNow
 		})
 	})
 
 	describe("Edge Cases", () => {
-		beforeEach(() => {
-			;(env as { NODE_ENV: string }).NODE_ENV = "development"
-		})
-
 		it("should handle requests with query parameters", () => {
 			mockRequest.originalUrl = "/api/search?q=test&page=1"
 
@@ -324,8 +252,9 @@ describe("requestLogger middleware", () => {
 			const finishCallback = onMock.mock.calls[0][1]
 			finishCallback()
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("/api/search?q=test&page=1")
+			expect(mockChildLoggerInfo.mock.calls[0][0].path).toBe(
+				"/api/search?q=test&page=1"
+			)
 		})
 
 		it("should handle empty path", () => {
@@ -336,8 +265,7 @@ describe("requestLogger middleware", () => {
 			const finishCallback = onMock.mock.calls[0][1]
 			finishCallback()
 
-			const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-			expect(logCall).toContain("/")
+			expect(mockChildLoggerInfo.mock.calls[0][0].path).toBe("/")
 		})
 
 		it("should handle different HTTP methods", () => {
@@ -356,9 +284,50 @@ describe("requestLogger middleware", () => {
 				const finishCallback = onMock.mock.calls[0][1]
 				finishCallback()
 
-				const logCall = (logger.info as jest.Mock).mock.calls[0][0]
-				expect(logCall).toContain(method)
+				expect(mockChildLoggerInfo.mock.calls[0][0].method).toBe(method)
 			}
+		})
+
+		it("should handle different status codes", () => {
+			const statusCodes = [200, 201, 301, 400, 404, 500, 503]
+
+			for (const statusCode of statusCodes) {
+				jest.clearAllMocks()
+				mockResponse.statusCode = statusCode
+
+				requestLogger(
+					mockRequest as Request,
+					mockResponse as Response,
+					mockNext
+				)
+
+				const finishCallback = onMock.mock.calls[0][1]
+				finishCallback()
+
+				expect(mockChildLoggerInfo.mock.calls[0][0].statusCode).toBe(statusCode)
+			}
+		})
+
+		it("should handle undefined userAgent", () => {
+			mockRequest.get = jest.fn().mockReturnValue(undefined)
+
+			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
+
+			const finishCallback = onMock.mock.calls[0][1]
+			finishCallback()
+
+			expect(mockChildLoggerInfo.mock.calls[0][0].userAgent).toBeUndefined()
+		})
+
+		it("should handle undefined IP", () => {
+			;(mockRequest as { ip: string | undefined }).ip = undefined
+
+			requestLogger(mockRequest as Request, mockResponse as Response, mockNext)
+
+			const finishCallback = onMock.mock.calls[0][1]
+			finishCallback()
+
+			expect(mockChildLoggerInfo.mock.calls[0][0].ip).toBeUndefined()
 		})
 	})
 })

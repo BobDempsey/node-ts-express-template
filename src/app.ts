@@ -6,7 +6,7 @@ import swaggerUi from "swagger-ui-express"
 import { swaggerSpec } from "@/docs/swagger"
 import { GREETING } from "@/lib/constants"
 import env from "@/lib/env"
-import { errorHandler, requestLogger } from "@/middleware"
+import { errorHandler, rateLimiter, requestLogger } from "@/middleware"
 import routes from "@/routes"
 
 dotenv.config({ quiet: true })
@@ -30,8 +30,11 @@ app.use(cors(corsOptions))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// Request logging
+// Request logging (must be before rate limiter for request ID context)
 app.use(requestLogger)
+
+// Rate limiting (skips /health, /ready, /live, /docs)
+app.use(rateLimiter)
 
 // API Documentation
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec))

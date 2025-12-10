@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto"
 import type { NextFunction, Request, Response } from "express"
-import env from "@/lib/env"
-import { logger } from "@/lib/logger"
+import { createChildLogger } from "@/lib/logger"
 
 /**
- * Request logging middleware
+ * Request logging middleware using Pino structured logging
  * Logs HTTP method, path, status code, and response time
  * Includes request ID for tracing
- * Uses structured JSON format in production, human-readable in development
+ * Uses JSON format for all environments
  */
 export const requestLogger = (
 	req: Request,
@@ -23,6 +22,12 @@ export const requestLogger = (
 	// Add request ID to response headers
 	res.setHeader("X-Request-Id", requestId)
 
+	// Create child logger with request context
+	const reqLogger = createChildLogger({ requestId })
+
+	// Attach logger to request for use in route handlers
+	;(req as Request & { log: typeof reqLogger }).log = reqLogger
+
 	// Record start time
 	const startTime = Date.now()
 
@@ -32,25 +37,18 @@ export const requestLogger = (
 		const { method, originalUrl } = req
 		const { statusCode } = res
 
-		if (env.NODE_ENV === "production") {
-			// Structured JSON format for production
-			const logData = JSON.stringify({
-				requestId,
+		// Structured log with all relevant request metadata
+		reqLogger.info(
+			{
 				method,
 				path: originalUrl,
 				statusCode,
 				duration,
-				timestamp: new Date().toISOString()
-			})
-			console.log(logData)
-		} else {
-			// Human-readable format for development
-			const statusEmoji =
-				statusCode >= 500 ? "❌" : statusCode >= 400 ? "⚠️" : "✅"
-			logger.info(
-				`${statusEmoji} ${method} ${originalUrl} ${statusCode} - ${duration}ms [${requestId}]`
-			)
-		}
+				userAgent: req.get("user-agent"),
+				ip: req.ip
+			},
+			`${method} ${originalUrl} ${statusCode} ${duration}ms`
+		)
 	})
 
 	next()

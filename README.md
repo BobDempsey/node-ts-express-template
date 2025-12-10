@@ -32,7 +32,7 @@ Try the live demo at: [https://node-ts-express-template.onrender.com/](https://n
 - 🔢 **API Versioning** - Organized route structure with v1 API endpoints and example routes
 - 📚 **API Documentation** - Interactive Swagger/OpenAPI documentation at `/docs`
 - ⚡ **Async Handler** - Built-in utility for automatic async error handling
-- 🔄 **Graceful Shutdown** - SIGTERM handling for zero-downtime deployments
+- 🔄 **Graceful Shutdown** - Multi-signal handling (SIGTERM/SIGINT/SIGHUP) with configurable timeout for zero-downtime deployments
 - 🐳 **Docker Ready** - Multi-stage Dockerfile and docker-compose.yml included for containerized deployments
 - 🚢 **Production Ready** - Structured logging, error handling, and cloud-native features
 
@@ -1062,25 +1062,34 @@ This template is production-ready with features designed for containerized deplo
 
 ### Graceful Shutdown
 
-The server handles termination signals gracefully, ensuring zero-downtime deployments:
+The server handles termination signals gracefully, ensuring zero-downtime deployments with robust error handling:
 
-```typescript
-// Implemented in src/index.ts
-process.on("SIGTERM", () => {
-  logger.info("SIGTERM received, shutting down gracefully...")
-  server.close(() => {
-    logger.info("Process terminated")
-    process.exit(0)
-  })
-})
-```
+**Signals Handled:**
+- `SIGTERM` - Standard termination signal (Kubernetes, Docker)
+- `SIGINT` - Interrupt signal (Ctrl+C)
+- `SIGHUP` - Hangup signal (terminal closed)
+
+**Additional Safety Features:**
+- `uncaughtException` - Catches unhandled exceptions and shuts down safely
+- `unhandledRejection` - Catches unhandled promise rejections
+- **Forced Shutdown Timeout** - If graceful shutdown takes too long, forces exit
 
 **How It Works:**
 
-1. **SIGTERM Signal**: Kubernetes, Docker, or your orchestrator sends SIGTERM
+1. **Signal Received**: SIGTERM, SIGINT, or SIGHUP is received
 2. **Stop Accepting Requests**: Server stops accepting new connections
 3. **Drain Connections**: Waits for existing requests to complete
-4. **Clean Exit**: Process exits with code 0
+4. **Timeout Protection**: If shutdown exceeds `SHUTDOWN_TIMEOUT_MS`, forces exit
+5. **Clean Exit**: Process exits with code 0 (or 1 on timeout/error)
+
+**Configuration:**
+
+Set the shutdown timeout via environment variable:
+
+```bash
+# Default is 30 seconds (30000ms)
+SHUTDOWN_TIMEOUT_MS=30000
+```
 
 **Benefits:**
 
@@ -1088,6 +1097,8 @@ process.on("SIGTERM", () => {
 - **Kubernetes-Ready**: Works with rolling updates and pod lifecycle
 - **Docker-Optimized**: Handles container stop signals properly
 - **Load Balancer Compatible**: Allows health checks to fail before shutdown
+- **Crash Protection**: Handles unexpected errors gracefully
+- **Timeout Safety**: Prevents indefinite hangs during shutdown
 
 **Testing Graceful Shutdown:**
 
@@ -1100,7 +1111,9 @@ kill -TERM $(lsof -t -i:3000)
 
 # You'll see:
 # SIGTERM received, shutting down gracefully...
-# Process terminated
+# Server closed, all connections finished
+
+# Or send SIGINT (Ctrl+C in the terminal running the server)
 ```
 
 ### Structured Logging
@@ -1738,6 +1751,10 @@ const EnvSchema = z.object({
   - Example: `CORS_ORIGIN=https://app.example.com,https://admin.example.com`
   - If not set, allows all origins in development (`true`)
   - In production, you should explicitly set allowed origins for security
+- `LOG_LEVEL` - Logging level: trace, debug, info, warn, error, fatal (default: info in production, debug in development)
+- `RATE_LIMIT_WINDOW_MS` - Rate limiting window in milliseconds (default: 60000)
+- `RATE_LIMIT_MAX_REQUESTS` - Maximum requests per window (default: 100)
+- `SHUTDOWN_TIMEOUT_MS` - Graceful shutdown timeout in milliseconds (default: 30000)
 
 #### Adding New Environment Variables
 

@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger"
 /**
  * Centralized error handler middleware
  * Catches all errors and returns consistent error responses
- * Logs errors with stack traces in development only
+ * Logs errors with structured metadata using Pino
  */
 export const errorHandler = (
 	err: Error,
@@ -16,13 +16,16 @@ export const errorHandler = (
 ): void => {
 	// Handle operational errors (AppError instances)
 	if (err instanceof AppError) {
-		// Log operational errors
-		logger.error(`${err.code}: ${err.message}`)
-
-		// In development, also log the stack trace
-		if (env.NODE_ENV === "development" && err.stack) {
-			logger.error(err.stack)
-		}
+		// Log operational errors with structured metadata
+		logger.error(
+			{
+				err,
+				code: err.code,
+				statusCode: err.statusCode,
+				details: err.details
+			},
+			`${err.code}: ${err.message}`
+		)
 
 		// Return the error response using toJSON()
 		res.status(err.statusCode).json(err.toJSON())
@@ -30,12 +33,7 @@ export const errorHandler = (
 	}
 
 	// Handle unexpected errors (non-operational)
-	logger.error(`Unexpected Error: ${err.message}`)
-
-	// In development, log the full stack trace
-	if (env.NODE_ENV === "development" && err.stack) {
-		logger.error(err.stack)
-	}
+	logger.error({ err }, `Unexpected Error: ${err.message}`)
 
 	// Don't expose internal error details in production
 	const response = {

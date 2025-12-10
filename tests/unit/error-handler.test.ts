@@ -1,13 +1,11 @@
 /**
- * Unit Tests for Error Handler Middleware
+ * Unit Tests for Error Handler Middleware (Pino-based)
  *
  * Test Coverage Plan:
  * 1. AppError Handling
  *    - Should return correct status code from AppError
  *    - Should return error response using toJSON()
- *    - Should log error message
- *    - Should log stack trace in development
- *    - Should not expose stack trace in production
+ *    - Should log error with structured metadata
  *
  * 2. Generic Error Handling
  *    - Should return 500 for non-AppError instances
@@ -16,9 +14,8 @@
  *    - Should include stack trace in development response
  *    - Should not include stack in production
  *
- * 3. Logging Behavior
- *    - Should log all errors
- *    - Should log stack traces in development only
+ * 3. Structured Logging
+ *    - Should log errors with structured metadata (err, code, statusCode)
  *
  * 4. Response Format
  *    - Should always return JSON
@@ -29,7 +26,7 @@ import type { NextFunction, Request, Response } from "express"
 import { AppError, NotFoundError, ValidationError } from "@/errors"
 import { errorHandler } from "@/middleware"
 
-// Mock logger
+// Mock logger with pino-style interface
 jest.mock("@/lib/logger", () => ({
 	logger: {
 		error: jest.fn(),
@@ -124,8 +121,8 @@ describe("errorHandler middleware", () => {
 			})
 		})
 
-		it("should log error message for AppError", () => {
-			const error = new ValidationError("Test error")
+		it("should log error with structured metadata for AppError", () => {
+			const error = new ValidationError("Test error", { field: "email" })
 
 			errorHandler(
 				error,
@@ -134,15 +131,19 @@ describe("errorHandler middleware", () => {
 				mockNext
 			)
 
-			expect(logger.error).toHaveBeenCalledWith("VALIDATION_ERROR: Test error")
+			expect(logger.error).toHaveBeenCalledWith(
+				expect.objectContaining({
+					err: error,
+					code: "VALIDATION_ERROR",
+					statusCode: 400,
+					details: { field: "email" }
+				}),
+				"VALIDATION_ERROR: Test error"
+			)
 		})
 
-		it("should log stack trace in development for AppError", () => {
-			const originalEnv = env.NODE_ENV
-			;(env as { NODE_ENV: string }).NODE_ENV = "development"
-
-			const error = new ValidationError("Test error")
-			const stack = error.stack
+		it("should log error message for AppError without details", () => {
+			const error = new NotFoundError("Resource not found")
 
 			errorHandler(
 				error,
@@ -151,27 +152,14 @@ describe("errorHandler middleware", () => {
 				mockNext
 			)
 
-			expect(logger.error).toHaveBeenCalledWith(stack)
-			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
-		})
-
-		it("should not log stack trace in production for AppError", () => {
-			const originalEnv = env.NODE_ENV
-			;(env as { NODE_ENV: string }).NODE_ENV = "production"
-
-			const error = new ValidationError("Test error")
-
-			errorHandler(
-				error,
-				mockRequest as Request,
-				mockResponse as Response,
-				mockNext
+			expect(logger.error).toHaveBeenCalledWith(
+				expect.objectContaining({
+					err: error,
+					code: "NOT_FOUND",
+					statusCode: 404
+				}),
+				"NOT_FOUND: Resource not found"
 			)
-
-			// Should only log the error message, not the stack
-			expect(logger.error).toHaveBeenCalledTimes(1)
-			expect(logger.error).toHaveBeenCalledWith("VALIDATION_ERROR: Test error")
-			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 	})
 
@@ -270,7 +258,7 @@ describe("errorHandler middleware", () => {
 			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 
-		it("should log unexpected errors", () => {
+		it("should log unexpected errors with structured metadata", () => {
 			const error = new Error("Unexpected error")
 
 			errorHandler(
@@ -281,26 +269,9 @@ describe("errorHandler middleware", () => {
 			)
 
 			expect(logger.error).toHaveBeenCalledWith(
+				{ err: error },
 				"Unexpected Error: Unexpected error"
 			)
-		})
-
-		it("should log stack trace in development for unexpected errors", () => {
-			const originalEnv = env.NODE_ENV
-			;(env as { NODE_ENV: string }).NODE_ENV = "development"
-
-			const error = new Error("Test error")
-			const stack = error.stack
-
-			errorHandler(
-				error,
-				mockRequest as Request,
-				mockResponse as Response,
-				mockNext
-			)
-
-			expect(logger.error).toHaveBeenCalledWith(stack)
-			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 	})
 

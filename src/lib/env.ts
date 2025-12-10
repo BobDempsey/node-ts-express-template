@@ -7,7 +7,7 @@
  */
 import { z } from "zod"
 
-import { NODE_ENV_VALUES } from "@/lib/constants"
+import { LOG_LEVEL_VALUES, NODE_ENV_VALUES } from "@/lib/constants"
 import tryParseEnv from "@/lib/try-parse-env"
 
 const EnvSchema = z.object({
@@ -27,7 +27,34 @@ const EnvSchema = z.object({
 			if (!val) return undefined
 			// Support comma-separated origins
 			return val.split(",").map((origin) => origin.trim())
+		}),
+	LOG_LEVEL: z.enum(LOG_LEVEL_VALUES).optional(),
+	// Rate limiting configuration
+	RATE_LIMIT_WINDOW_MS: z
+		.string()
+		.default("60000")
+		.transform((val) => {
+			const parsed = Number.parseInt(val, 10)
+			return Number.isNaN(parsed) ? 60000 : parsed
 		})
+		.optional(),
+	RATE_LIMIT_MAX_REQUESTS: z
+		.string()
+		.default("100")
+		.transform((val) => {
+			const parsed = Number.parseInt(val, 10)
+			return Number.isNaN(parsed) ? 100 : parsed
+		})
+		.optional(),
+	// Graceful shutdown timeout in milliseconds
+	SHUTDOWN_TIMEOUT_MS: z
+		.string()
+		.default("30000")
+		.transform((val) => {
+			const parsed = Number.parseInt(val, 10)
+			return Number.isNaN(parsed) ? 30000 : parsed
+		})
+		.optional()
 })
 
 export type EnvSchema = z.infer<typeof EnvSchema>
