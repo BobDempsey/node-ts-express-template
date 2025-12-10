@@ -39,10 +39,9 @@ export function generateAccessToken(
 	payload: Omit<TokenPayload, "type">
 ): string {
 	const secret = getSecret()
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return jwt.sign({ ...payload, type: "access" }, secret, {
 		expiresIn: env.JWT_EXPIRY
-	} as any)
+	} as jwt.SignOptions)
 }
 
 /**
@@ -52,10 +51,9 @@ export function generateRefreshToken(
 	payload: Omit<TokenPayload, "type">
 ): string {
 	const secret = getSecret()
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return jwt.sign({ ...payload, type: "refresh" }, secret, {
 		expiresIn: env.JWT_REFRESH_EXPIRY
-	} as any)
+	} as jwt.SignOptions)
 }
 
 /**
