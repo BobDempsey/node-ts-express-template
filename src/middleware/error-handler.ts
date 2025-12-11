@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express"
 import { AppError } from "@/errors"
 import env from "@/lib/env"
 import { logger } from "@/lib/logger"
+import { sendError } from "@/utils"
 
 /**
  * Centralized error handler middleware
@@ -27,8 +28,8 @@ export const errorHandler = (
 			`${err.code}: ${err.message}`
 		)
 
-		// Return the error response using toJSON()
-		res.status(err.statusCode).json(err.toJSON())
+		// Return the error response using standardized format
+		sendError(res, err.message, err.code, err.statusCode, err.details)
 		return
 	}
 
@@ -36,13 +37,12 @@ export const errorHandler = (
 	logger.error({ err }, `Unexpected Error: ${err.message}`)
 
 	// Don't expose internal error details in production
-	const response = {
-		error:
-			env.NODE_ENV === "development" ? err.message : "Internal Server Error",
-		code: "INTERNAL_SERVER_ERROR",
-		statusCode: 500,
-		...(env.NODE_ENV === "development" && err.stack && { stack: err.stack })
-	}
+	const message =
+		env.NODE_ENV === "development" ? err.message : "Internal Server Error"
+	const details =
+		env.NODE_ENV === "development" && err.stack
+			? { stack: err.stack }
+			: undefined
 
-	res.status(500).json(response)
+	sendError(res, message, "INTERNAL_SERVER_ERROR", 500, details)
 }

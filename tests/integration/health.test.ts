@@ -18,17 +18,20 @@ describe("Health Check Endpoints Integration Tests", () => {
 			expect(response.headers["content-type"]).toMatch(/application\/json/)
 		})
 
-		it("should return status ok", async () => {
+		it("should return status ok in data envelope", async () => {
 			const response = await request(app).get("/health")
-			expect(response.body).toHaveProperty("status", "ok")
+			expect(response.body).toHaveProperty("success", true)
+			expect(response.body).toHaveProperty("data")
+			expect(response.body.data).toHaveProperty("status", "ok")
 		})
 
-		it("should include timestamp", async () => {
+		it("should include timestamp in meta", async () => {
 			const response = await request(app).get("/health")
-			expect(response.body).toHaveProperty("timestamp")
-			expect(new Date(response.body.timestamp).getTime()).toBeLessThanOrEqual(
-				Date.now()
-			)
+			expect(response.body).toHaveProperty("meta")
+			expect(response.body.meta).toHaveProperty("timestamp")
+			expect(
+				new Date(response.body.meta.timestamp).getTime()
+			).toBeLessThanOrEqual(Date.now())
 		})
 
 		it("should handle multiple concurrent requests", async () => {
@@ -42,7 +45,7 @@ describe("Health Check Endpoints Integration Tests", () => {
 
 			for (const response of responses) {
 				expect(response.status).toBe(200)
-				expect(response.body.status).toBe("ok")
+				expect(response.body.data.status).toBe("ok")
 			}
 		})
 
@@ -65,17 +68,19 @@ describe("Health Check Endpoints Integration Tests", () => {
 			expect(response.headers["content-type"]).toMatch(/application\/json/)
 		})
 
-		it("should return status ready", async () => {
+		it("should return status ready in data envelope", async () => {
 			const response = await request(app).get("/ready")
-			expect(response.body).toHaveProperty("status", "ready")
+			expect(response.body).toHaveProperty("success", true)
+			expect(response.body.data).toHaveProperty("status", "ready")
 		})
 
-		it("should include timestamp", async () => {
+		it("should include timestamp in meta", async () => {
 			const response = await request(app).get("/ready")
-			expect(response.body).toHaveProperty("timestamp")
-			expect(new Date(response.body.timestamp).getTime()).toBeLessThanOrEqual(
-				Date.now()
-			)
+			expect(response.body).toHaveProperty("meta")
+			expect(response.body.meta).toHaveProperty("timestamp")
+			expect(
+				new Date(response.body.meta.timestamp).getTime()
+			).toBeLessThanOrEqual(Date.now())
 		})
 
 		it("should handle multiple concurrent requests", async () => {
@@ -87,7 +92,7 @@ describe("Health Check Endpoints Integration Tests", () => {
 
 			for (const response of responses) {
 				expect(response.status).toBe(200)
-				expect(response.body.status).toBe("ready")
+				expect(response.body.data.status).toBe("ready")
 			}
 		})
 	})
@@ -103,17 +108,19 @@ describe("Health Check Endpoints Integration Tests", () => {
 			expect(response.headers["content-type"]).toMatch(/application\/json/)
 		})
 
-		it("should return status alive", async () => {
+		it("should return status alive in data envelope", async () => {
 			const response = await request(app).get("/live")
-			expect(response.body).toHaveProperty("status", "alive")
+			expect(response.body).toHaveProperty("success", true)
+			expect(response.body.data).toHaveProperty("status", "alive")
 		})
 
-		it("should include timestamp", async () => {
+		it("should include timestamp in meta", async () => {
 			const response = await request(app).get("/live")
-			expect(response.body).toHaveProperty("timestamp")
-			expect(new Date(response.body.timestamp).getTime()).toBeLessThanOrEqual(
-				Date.now()
-			)
+			expect(response.body).toHaveProperty("meta")
+			expect(response.body.meta).toHaveProperty("timestamp")
+			expect(
+				new Date(response.body.meta.timestamp).getTime()
+			).toBeLessThanOrEqual(Date.now())
 		})
 
 		it("should handle rapid successive requests", async () => {
@@ -126,7 +133,7 @@ describe("Health Check Endpoints Integration Tests", () => {
 
 			for (const response of responses) {
 				expect(response.status).toBe(200)
-				expect(response.body.status).toBe("alive")
+				expect(response.body.data.status).toBe("alive")
 			}
 		})
 	})

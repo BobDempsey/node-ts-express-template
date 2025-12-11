@@ -85,7 +85,7 @@ describe("errorHandler middleware", () => {
 			expect(statusMock).toHaveBeenCalledWith(400)
 		})
 
-		it("should return error response using toJSON()", () => {
+		it("should return error response in standard envelope", () => {
 			const error = new ValidationError("Test error", { field: "email" })
 
 			errorHandler(
@@ -95,12 +95,17 @@ describe("errorHandler middleware", () => {
 				mockNext
 			)
 
-			expect(jsonMock).toHaveBeenCalledWith({
-				error: "Test error",
+			const response = jsonMock.mock.calls[0][0]
+			expect(response).toHaveProperty("success", false)
+			expect(response).toHaveProperty("error")
+			expect(response.error).toEqual({
+				message: "Test error",
 				code: "VALIDATION_ERROR",
 				statusCode: 400,
 				details: { field: "email" }
 			})
+			expect(response).toHaveProperty("meta")
+			expect(response.meta).toHaveProperty("timestamp")
 		})
 
 		it("should handle NotFoundError correctly", () => {
@@ -114,8 +119,10 @@ describe("errorHandler middleware", () => {
 			)
 
 			expect(statusMock).toHaveBeenCalledWith(404)
-			expect(jsonMock).toHaveBeenCalledWith({
-				error: "User not found",
+			const response = jsonMock.mock.calls[0][0]
+			expect(response).toHaveProperty("success", false)
+			expect(response.error).toEqual({
+				message: "User not found",
 				code: "NOT_FOUND",
 				statusCode: 404
 			})
@@ -190,8 +197,10 @@ describe("errorHandler middleware", () => {
 				mockNext
 			)
 
-			expect(jsonMock).toHaveBeenCalledWith({
-				error: "Internal Server Error",
+			const response = jsonMock.mock.calls[0][0]
+			expect(response).toHaveProperty("success", false)
+			expect(response.error).toMatchObject({
+				message: "Internal Server Error",
 				code: "INTERNAL_SERVER_ERROR",
 				statusCode: 500
 			})
@@ -212,12 +221,14 @@ describe("errorHandler middleware", () => {
 				mockNext
 			)
 
-			expect(jsonMock).toHaveBeenCalledWith({
-				error: "Database connection failed",
+			const response = jsonMock.mock.calls[0][0]
+			expect(response).toHaveProperty("success", false)
+			expect(response.error).toMatchObject({
+				message: "Database connection failed",
 				code: "INTERNAL_SERVER_ERROR",
-				statusCode: 500,
-				stack
+				statusCode: 500
 			})
+			expect(response.error.details).toEqual({ stack })
 			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 
@@ -235,8 +246,8 @@ describe("errorHandler middleware", () => {
 				mockNext
 			)
 
-			const callArgs = jsonMock.mock.calls[0][0]
-			expect(callArgs).toHaveProperty("stack", stack)
+			const response = jsonMock.mock.calls[0][0]
+			expect(response.error.details).toEqual({ stack })
 			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 
@@ -253,8 +264,8 @@ describe("errorHandler middleware", () => {
 				mockNext
 			)
 
-			const callArgs = jsonMock.mock.calls[0][0]
-			expect(callArgs).not.toHaveProperty("stack")
+			const response = jsonMock.mock.calls[0][0]
+			expect(response.error).not.toHaveProperty("details")
 			;(env as { NODE_ENV: string | undefined }).NODE_ENV = originalEnv
 		})
 
@@ -288,9 +299,12 @@ describe("errorHandler middleware", () => {
 
 			expect(jsonMock).toHaveBeenCalled()
 			const response = jsonMock.mock.calls[0][0]
+			expect(response).toHaveProperty("success", false)
 			expect(response).toHaveProperty("error")
-			expect(response).toHaveProperty("code")
-			expect(response).toHaveProperty("statusCode")
+			expect(response).toHaveProperty("meta")
+			expect(response.error).toHaveProperty("message")
+			expect(response.error).toHaveProperty("code")
+			expect(response.error).toHaveProperty("statusCode")
 		})
 
 		it("should always return JSON for generic errors", () => {
@@ -305,9 +319,12 @@ describe("errorHandler middleware", () => {
 
 			expect(jsonMock).toHaveBeenCalled()
 			const response = jsonMock.mock.calls[0][0]
+			expect(response).toHaveProperty("success", false)
 			expect(response).toHaveProperty("error")
-			expect(response).toHaveProperty("code")
-			expect(response).toHaveProperty("statusCode")
+			expect(response).toHaveProperty("meta")
+			expect(response.error).toHaveProperty("message")
+			expect(response.error).toHaveProperty("code")
+			expect(response.error).toHaveProperty("statusCode")
 		})
 
 		it("should have consistent error shape for all errors", () => {
@@ -328,9 +345,12 @@ describe("errorHandler middleware", () => {
 				)
 
 				const response = jsonMock.mock.calls[0][0]
-				expect(typeof response.error).toBe("string")
-				expect(typeof response.code).toBe("string")
-				expect(typeof response.statusCode).toBe("number")
+				expect(response).toHaveProperty("success", false)
+				expect(response).toHaveProperty("error")
+				expect(response).toHaveProperty("meta")
+				expect(typeof response.error.message).toBe("string")
+				expect(typeof response.error.code).toBe("string")
+				expect(typeof response.error.statusCode).toBe("number")
 			})
 		})
 	})
@@ -362,7 +382,7 @@ describe("errorHandler middleware", () => {
 			)
 
 			const response = jsonMock.mock.calls[0][0]
-			expect(response).not.toHaveProperty("details")
+			expect(response.error).not.toHaveProperty("details")
 		})
 
 		it("should handle AppError with complex details", () => {
@@ -380,7 +400,7 @@ describe("errorHandler middleware", () => {
 			)
 
 			const response = jsonMock.mock.calls[0][0]
-			expect(response.details).toEqual(details)
+			expect(response.error.details).toEqual(details)
 		})
 
 		it("should handle error with empty message", () => {

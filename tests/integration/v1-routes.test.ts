@@ -36,19 +36,21 @@ describe("API v1 Routes Integration Tests", () => {
 			expect(response.headers["content-type"]).toMatch(/application\/json/)
 		})
 
-		it("should return example JSON response", async () => {
+		it("should return example JSON response in data envelope", async () => {
 			const response = await request(app).get("/api/v1/example")
-			expect(response.body).toHaveProperty("message")
-			expect(response.body).toHaveProperty("version")
-			expect(response.body).toHaveProperty("timestamp")
-			expect(response.body.message).toBe("This is an example endpoint")
-			expect(response.body.version).toBe("v1")
+			expect(response.body).toHaveProperty("success", true)
+			expect(response.body).toHaveProperty("data")
+			expect(response.body).toHaveProperty("meta")
+			expect(response.body.data).toHaveProperty("message")
+			expect(response.body.data).toHaveProperty("version")
+			expect(response.body.data.message).toBe("This is an example endpoint")
+			expect(response.body.data.version).toBe("v1")
 		})
 
-		it("should return valid ISO timestamp", async () => {
+		it("should return valid ISO timestamp in meta", async () => {
 			const response = await request(app).get("/api/v1/example")
-			const timestamp = new Date(response.body.timestamp)
-			expect(timestamp.toISOString()).toBe(response.body.timestamp)
+			const timestamp = new Date(response.body.meta.timestamp)
+			expect(timestamp.toISOString()).toBe(response.body.meta.timestamp)
 		})
 	})
 

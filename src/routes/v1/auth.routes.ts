@@ -14,7 +14,7 @@ import {
 } from "@/lib/jwt"
 import { validate } from "@/middleware"
 import { userService } from "@/services"
-import { asyncHandler } from "@/utils"
+import { asyncHandler, sendSuccess } from "@/utils"
 
 const router = Router()
 
@@ -100,7 +100,7 @@ router.post(
 		const accessToken = generateAccessToken(tokenPayload)
 		const refreshToken = generateRefreshToken(tokenPayload)
 
-		res.json({
+		sendSuccess(res, {
 			accessToken,
 			refreshToken,
 			user: {
@@ -170,7 +170,7 @@ router.post(
 				email: user.email
 			})
 
-			res.json({ accessToken })
+			sendSuccess(res, { accessToken })
 		} catch (error) {
 			if (error instanceof UnauthorizedError) {
 				throw error
@@ -213,7 +213,7 @@ router.get(
 			throw new UnauthorizedError("Authentication required")
 		}
 
-		res.json({
+		sendSuccess(res, {
 			userId: req.user.userId,
 			email: req.user.email
 		})

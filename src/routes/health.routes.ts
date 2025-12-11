@@ -1,4 +1,5 @@
 import { type Request, type Response, Router } from "express"
+import { sendError, sendSuccess } from "@/utils"
 
 const router = Router()
 
@@ -26,10 +27,7 @@ const router = Router()
  *                   format: date-time
  */
 router.get("/health", (_req: Request, res: Response) => {
-	res.status(200).json({
-		status: "ok",
-		timestamp: new Date().toISOString()
-	})
+	sendSuccess(res, { status: "ok" })
 })
 
 /**
@@ -74,15 +72,9 @@ router.get("/ready", (_req: Request, res: Response) => {
 	const isReady = true
 
 	if (isReady) {
-		res.status(200).json({
-			status: "ready",
-			timestamp: new Date().toISOString()
-		})
+		sendSuccess(res, { status: "ready" })
 	} else {
-		res.status(503).json({
-			status: "not ready",
-			timestamp: new Date().toISOString()
-		})
+		sendError(res, "Service not ready", "SERVICE_NOT_READY", 503)
 	}
 })
 
@@ -111,10 +103,7 @@ router.get("/ready", (_req: Request, res: Response) => {
  */
 router.get("/live", (_req: Request, res: Response) => {
 	// If we can respond, we're alive
-	res.status(200).json({
-		status: "alive",
-		timestamp: new Date().toISOString()
-	})
+	sendSuccess(res, { status: "alive" })
 })
 
 export default router

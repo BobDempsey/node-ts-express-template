@@ -1,6 +1,6 @@
 import { type Request, type Response, Router } from "express"
 import { GREETING } from "@/lib/constants"
-import { asyncHandler } from "@/utils"
+import { asyncHandler, sendSuccess } from "@/utils"
 
 const router = Router()
 
@@ -52,10 +52,9 @@ router.get("/", (_req: Request, res: Response) => {
  *                   format: date-time
  */
 router.get("/example", (_req: Request, res: Response) => {
-	res.json({
+	sendSuccess(res, {
 		message: "This is an example endpoint",
-		version: "v1",
-		timestamp: new Date().toISOString()
+		version: "v1"
 	})
 })
 
@@ -95,11 +94,10 @@ router.get(
 		const data = await Promise.resolve({
 			message: "This is an async endpoint example",
 			version: "v1",
-			timestamp: new Date().toISOString(),
 			description: "Wrapped with asyncHandler to catch promise rejections"
 		})
 
-		res.json(data)
+		sendSuccess(res, data)
 	})
 )
 

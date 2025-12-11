@@ -45,12 +45,15 @@ describe("Error Handler Middleware Integration", () => {
 			const response = await request(testApp).get("/test")
 
 			expect(response.status).toBe(400)
-			expect(response.body).toEqual({
-				error: "Email is required",
+			expect(response.body).toHaveProperty("success", false)
+			expect(response.body).toHaveProperty("error")
+			expect(response.body.error).toEqual({
+				message: "Email is required",
 				code: "VALIDATION_ERROR",
 				statusCode: 400,
 				details: { field: "email" }
 			})
+			expect(response.body).toHaveProperty("meta")
 		})
 
 		it("should handle NotFoundError thrown in route", async () => {
@@ -62,8 +65,9 @@ describe("Error Handler Middleware Integration", () => {
 			const response = await request(testApp).get("/test")
 
 			expect(response.status).toBe(404)
-			expect(response.body).toEqual({
-				error: "User not found",
+			expect(response.body).toHaveProperty("success", false)
+			expect(response.body.error).toEqual({
+				message: "User not found",
 				code: "NOT_FOUND",
 				statusCode: 404
 			})
@@ -78,12 +82,13 @@ describe("Error Handler Middleware Integration", () => {
 			const response = await request(testApp).get("/test")
 
 			expect(response.status).toBe(400)
-			expect(response.body).toEqual({
-				error: "Validation failed",
+			expect(response.body).toHaveProperty("success", false)
+			expect(response.body.error).toMatchObject({
+				message: "Validation failed",
 				code: "VALIDATION_ERROR",
 				statusCode: 400
 			})
-			expect(response.body).not.toHaveProperty("details")
+			expect(response.body.error).not.toHaveProperty("details")
 		})
 	})
 
@@ -97,9 +102,13 @@ describe("Error Handler Middleware Integration", () => {
 			const response = await request(testApp).get("/test")
 
 			expect(response.status).toBe(500)
+			expect(response.body).toHaveProperty("success", false)
 			expect(response.body).toHaveProperty("error")
-			expect(response.body).toHaveProperty("code", "INTERNAL_SERVER_ERROR")
-			expect(response.body).toHaveProperty("statusCode", 500)
+			expect(response.body.error).toHaveProperty(
+				"code",
+				"INTERNAL_SERVER_ERROR"
+			)
+			expect(response.body.error).toHaveProperty("statusCode", 500)
 		})
 
 		it("should handle async errors in routes", async () => {
@@ -112,7 +121,7 @@ describe("Error Handler Middleware Integration", () => {
 			const response = await request(testApp).get("/test")
 
 			expect(response.status).toBe(400)
-			expect(response.body.error).toBe("Async error")
+			expect(response.body.error.message).toBe("Async error")
 		})
 
 		it("should handle errors in middleware chain", async () => {
@@ -133,7 +142,7 @@ describe("Error Handler Middleware Integration", () => {
 			const response = await request(testApp).get("/test")
 
 			expect(response.status).toBe(400)
-			expect(response.body.error).toBe("Middleware error")
+			expect(response.body.error.message).toBe("Middleware error")
 		})
 	})
 
@@ -165,12 +174,15 @@ describe("Error Handler Middleware Integration", () => {
 
 			for (const { route } of errors) {
 				const response = await request(testApp).get(route)
+				expect(response.body).toHaveProperty("success", false)
 				expect(response.body).toHaveProperty("error")
-				expect(response.body).toHaveProperty("code")
-				expect(response.body).toHaveProperty("statusCode")
-				expect(typeof response.body.error).toBe("string")
-				expect(typeof response.body.code).toBe("string")
-				expect(typeof response.body.statusCode).toBe("number")
+				expect(response.body).toHaveProperty("meta")
+				expect(response.body.error).toHaveProperty("message")
+				expect(response.body.error).toHaveProperty("code")
+				expect(response.body.error).toHaveProperty("statusCode")
+				expect(typeof response.body.error.message).toBe("string")
+				expect(typeof response.body.error.code).toBe("string")
+				expect(typeof response.body.error.statusCode).toBe("number")
 			}
 		})
 	})
@@ -189,11 +201,11 @@ describe("Error Handler Middleware Integration", () => {
 
 			const response1 = await request(testApp).get("/route1")
 			expect(response1.status).toBe(400)
-			expect(response1.body.error).toBe("Route 1 error")
+			expect(response1.body.error.message).toBe("Route 1 error")
 
 			const response2 = await request(testApp).get("/route2")
 			expect(response2.status).toBe(404)
-			expect(response2.body.error).toBe("Route 2 error")
+			expect(response2.body.error.message).toBe("Route 2 error")
 		})
 	})
 
@@ -209,7 +221,7 @@ describe("Error Handler Middleware Integration", () => {
 				.send({ data: "test" })
 
 			expect(response.status).toBe(400)
-			expect(response.body.error).toBe("Invalid body")
+			expect(response.body.error.message).toBe("Invalid body")
 		})
 
 		it("should handle errors in PUT routes", async () => {
@@ -223,7 +235,7 @@ describe("Error Handler Middleware Integration", () => {
 				.send({ data: "test" })
 
 			expect(response.status).toBe(404)
-			expect(response.body.error).toBe("Resource not found")
+			expect(response.body.error.message).toBe("Resource not found")
 		})
 
 		it("should handle errors in DELETE routes", async () => {
@@ -235,7 +247,9 @@ describe("Error Handler Middleware Integration", () => {
 			const response = await request(testApp).delete("/test/123")
 
 			expect(response.status).toBe(404)
-			expect(response.body.error).toBe("Cannot delete non-existent resource")
+			expect(response.body.error.message).toBe(
+				"Cannot delete non-existent resource"
+			)
 		})
 	})
 })

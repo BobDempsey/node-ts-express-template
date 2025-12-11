@@ -305,5 +305,3 @@ src/
 
 - do we need the npm http status codes package for http errors and responses?
 - do we want to include any database integration (e.g., a simple SQLite setup) as part of the template?
-- do we want to include a standard logging library (e.g., pino or winston) instead of a custom logger?
-- do we want to include a standard response format for all API responses?

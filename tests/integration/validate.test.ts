@@ -85,10 +85,11 @@ describe("Validate Middleware Integration", () => {
 			})
 
 			expect(response.status).toBe(400)
+			expect(response.body).toHaveProperty("success", false)
 			expect(response.body).toHaveProperty("error")
-			expect(response.body).toHaveProperty("code", "VALIDATION_ERROR")
-			expect(response.body).toHaveProperty("details")
-			expect(response.body.details).toHaveProperty("email")
+			expect(response.body.error).toHaveProperty("code", "VALIDATION_ERROR")
+			expect(response.body.error).toHaveProperty("details")
+			expect(response.body.error.details).toHaveProperty("email")
 		})
 
 		it("should return 400 for missing required fields", async () => {
@@ -111,7 +112,7 @@ describe("Validate Middleware Integration", () => {
 			})
 
 			expect(response.status).toBe(400)
-			expect(response.body.details).toHaveProperty("email")
+			expect(response.body.error.details).toHaveProperty("email")
 		})
 
 		it("should apply default values from schema", async () => {
@@ -201,8 +202,8 @@ describe("Validate Middleware Integration", () => {
 			const response = await request(testApp).get("/users/not-a-uuid")
 
 			expect(response.status).toBe(400)
-			expect(response.body.code).toBe("VALIDATION_ERROR")
-			expect(response.body.details).toHaveProperty("id")
+			expect(response.body.error.code).toBe("VALIDATION_ERROR")
+			expect(response.body.error.details).toHaveProperty("id")
 		})
 
 		it("should handle multiple params", async () => {
@@ -270,7 +271,7 @@ describe("Validate Middleware Integration", () => {
 			const response = await request(testApp).get("/users?page=-1")
 
 			expect(response.status).toBe(400)
-			expect(response.body.code).toBe("VALIDATION_ERROR")
+			expect(response.body.error.code).toBe("VALIDATION_ERROR")
 		})
 
 		it("should handle optional query parameters", async () => {
@@ -411,7 +412,7 @@ describe("Validate Middleware Integration", () => {
 				})
 
 			expect(response.status).toBe(400)
-			expect(response.body.details).toHaveProperty(["user.profile.age"])
+			expect(response.body.error.details).toHaveProperty(["user.profile.age"])
 		})
 	})
 
@@ -476,7 +477,7 @@ describe("Validate Middleware Integration", () => {
 				.send({ name: "John" })
 
 			expect(response.status).toBe(400)
-			expect(response.body.details).toHaveProperty("id")
+			expect(response.body.error.details).toHaveProperty("id")
 		})
 	})
 
@@ -500,12 +501,13 @@ describe("Validate Middleware Integration", () => {
 				.send({ email: "invalid" })
 
 			expect(response.status).toBe(400)
-			expect(response.body).toMatchObject({
+			expect(response.body).toHaveProperty("success", false)
+			expect(response.body).toHaveProperty("error")
+			expect(response.body.error).toMatchObject({
 				code: "VALIDATION_ERROR",
 				statusCode: 400
 			})
-			expect(response.body).toHaveProperty("error")
-			expect(response.body).toHaveProperty("details")
+			expect(response.body.error).toHaveProperty("details")
 		})
 
 		it("should return JSON content type for validation errors", async () => {
