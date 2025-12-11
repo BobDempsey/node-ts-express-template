@@ -22,7 +22,7 @@ Try the live demo at: [https://node-ts-express-template.onrender.com/](https://n
 - 🧪 **Testing Suite** - Jest and Supertest for comprehensive unit and integration testing
 - 🎨 **Code Quality** - Biome for fast linting and formatting
 - 🪝 **Pre-commit Hooks** - Husky and lint-staged for automatic code quality checks
-- 📝 **Request Logging** - Built-in request logger with unique IDs and structured JSON for production
+- 📝 **Pino Logging** - Structured JSON logging with Pino, pretty-print in dev, automatic sensitive field redaction
 - 🔍 **Request Tracing** - Automatic UUID generation and X-Request-Id header for distributed tracing
 - 🛡️ **Security Headers** - Helmet middleware pre-configured for HTTP security
 - 🌐 **CORS Support** - Pre-configured CORS with environment-based origin control
@@ -35,6 +35,8 @@ Try the live demo at: [https://node-ts-express-template.onrender.com/](https://n
 - ⚡ **Async Handler** - Built-in utility for automatic async error handling
 - 🔄 **Graceful Shutdown** - Multi-signal handling (SIGTERM/SIGINT/SIGHUP) with configurable timeout for zero-downtime deployments
 - 🐳 **Docker Ready** - Multi-stage Dockerfile and docker-compose.yml included for containerized deployments
+- 🚦 **Rate Limiting** - Built-in request rate limiting with configurable limits and IP-based throttling
+- 📦 **API Response Envelope** - Standardized response utilities for consistent API responses
 - 🚢 **Production Ready** - Structured logging, error handling, and cloud-native features
 
 ## Quick Start
@@ -93,13 +95,16 @@ node-ts-express-template/
 │   ├── lib/
 │   │   ├── env.ts          # Environment variable schema and validation
 │   │   ├── try-parse-env.ts # Zod environment parsing utility
-│   │   ├── logger.ts       # Custom logger with timestamps and log levels
+│   │   ├── logger.ts       # Pino-based structured logger
+│   │   ├── jwt.ts          # JWT token generation and verification
 │   │   └── constants.ts    # Application constants
 │   ├── middleware/
 │   │   ├── index.ts        # Middleware exports
 │   │   ├── error-handler.ts # Centralized error handling
 │   │   ├── request-logger.ts # Request logging with tracing
-│   │   └── validate.ts      # Request validation with Zod
+│   │   ├── validate.ts      # Request validation with Zod
+│   │   ├── rate-limiter.ts  # Rate limiting middleware
+│   │   └── auth.ts          # JWT authentication middleware
 │   ├── errors/
 │   │   ├── index.ts        # Error class exports
 │   │   ├── app-error.ts    # Base error class
@@ -111,12 +116,20 @@ node-ts-express-template/
 │   │   ├── health.routes.ts # Health check endpoints
 │   │   └── v1/             # API v1 routes
 │   │       ├── index.ts    # v1 route aggregator
-│   │       └── example.routes.ts # Example v1 endpoints
+│   │       ├── example.routes.ts # Example v1 endpoints
+│   │       └── auth.routes.ts # Authentication endpoints
+│   ├── services/
+│   │   ├── index.ts        # Service exports
+│   │   ├── user.service.ts # User service interface
+│   │   └── user.service.stub.ts # Stub user service for testing
+│   ├── types/
+│   │   └── express.d.ts    # Express type extensions
 │   ├── docs/
 │   │   └── swagger.ts      # Swagger/OpenAPI configuration
 │   ├── utils/
 │   │   ├── index.ts        # Utility exports
-│   │   └── async-handler.ts # Async route error wrapper
+│   │   ├── async-handler.ts # Async route error wrapper
+│   │   └── api-response.ts  # Standardized API response utilities
 │   ├── app.ts              # Express app configuration and middleware setup
 │   └── index.ts            # Server startup and lifecycle management
 ├── tests/
@@ -514,41 +527,111 @@ The validation middleware:
 - Throws `ValidationError` that's handled by the error handler
 - Supports validation of `body`, `params`, and `query`
 
-#### Structured Responses
+#### Structured Responses (API Response Envelope)
 
-Create consistent API response formats:
+This template includes built-in utilities for standardized API responses in `src/utils/api-response.ts`. All responses follow a consistent envelope format for easy client-side handling.
+
+**Response Envelope Format:**
 
 ```typescript
-// src/lib/response.ts
-export const successResponse = <T>(data: T, message?: string) => ({
-  success: true,
-  message,
-  data
-})
-
-export const errorResponse = (message: string, errors?: unknown) => ({
-  success: false,
-  message,
-  errors
-})
-
-// Usage in routes
-import { successResponse, errorResponse } from "@/lib/response"
-
-app.get("/api/users", async (req, res) => {
-  const users = await getUsers()
-  res.json(successResponse(users, "Users retrieved successfully"))
-})
-
-app.post("/api/users", async (req, res) => {
-  try {
-    const user = await createUser(req.body)
-    res.status(201).json(successResponse(user, "User created"))
-  } catch (error) {
-    res.status(400).json(errorResponse("Failed to create user", error))
+interface ApiResponse<T> {
+  success: boolean
+  data?: T                    // Present on success
+  error?: {                   // Present on error
+    message: string
+    code: string
+    statusCode: number
+    details?: Record<string, unknown>
   }
-})
+  meta: {
+    timestamp: string         // ISO 8601 timestamp
+    requestId?: string        // For request correlation
+    pagination?: {            // For paginated responses
+      page: number
+      limit: number
+      total: number
+      totalPages: number
+    }
+  }
+}
 ```
+
+**Using the Built-in Utilities:**
+
+```typescript
+import { sendSuccess, sendError } from "@/utils/api-response"
+import { asyncHandler } from "@/utils"
+
+// Success response
+router.get("/users", asyncHandler(async (req, res) => {
+  const users = await getUsers()
+  sendSuccess(res, users)
+  // Response: { success: true, data: [...], meta: { timestamp: "..." } }
+}))
+
+// Success with custom status code
+router.post("/users", asyncHandler(async (req, res) => {
+  const user = await createUser(req.body)
+  sendSuccess(res, user, 201)
+  // Response: { success: true, data: {...}, meta: { timestamp: "..." } }
+}))
+
+// Success with pagination metadata
+router.get("/users", asyncHandler(async (req, res) => {
+  const { users, total } = await getPaginatedUsers(req.query)
+  sendSuccess(res, users, 200, {
+    pagination: { page: 1, limit: 10, total, totalPages: Math.ceil(total / 10) }
+  })
+}))
+
+// Error response
+router.get("/users/:id", asyncHandler(async (req, res) => {
+  const user = await getUserById(req.params.id)
+  if (!user) {
+    sendError(res, "User not found", "USER_NOT_FOUND", 404)
+    return
+  }
+  sendSuccess(res, user)
+}))
+
+// Error with additional details
+router.post("/users", asyncHandler(async (req, res) => {
+  if (!isValidEmail(req.body.email)) {
+    sendError(res, "Validation failed", "VALIDATION_ERROR", 400, {
+      field: "email",
+      reason: "Invalid email format"
+    })
+    return
+  }
+  // ...
+}))
+```
+
+**Example Responses:**
+
+Success:
+```json
+{
+  "success": true,
+  "data": { "id": "123", "name": "John Doe", "email": "john@example.com" },
+  "meta": { "timestamp": "2025-12-07T10:30:45.123Z" }
+}
+```
+
+Error:
+```json
+{
+  "success": false,
+  "error": {
+    "message": "User not found",
+    "code": "USER_NOT_FOUND",
+    "statusCode": 404
+  },
+  "meta": { "timestamp": "2025-12-07T10:30:45.123Z" }
+}
+```
+
+The response utilities are in `src/utils/api-response.ts` and exported from `@/utils`.
 
 #### Controller Pattern
 
@@ -610,45 +693,93 @@ app.use("/api/users", userRoutes)
 
 #### Request Logging
 
-This template includes a built-in request logging middleware that automatically logs all HTTP requests. The middleware is already configured in `src/app.ts` and tracks:
+This template includes built-in request logging using **Pino**, a high-performance JSON logger. The middleware is already configured in `src/app.ts` and tracks:
 
 - HTTP method and path
 - Response status code
 - Response time in milliseconds
 - Unique request ID for tracing
+- User agent and IP address
 
-The logger uses different formats based on environment:
+**Key Features:**
 
-**Development Mode:**
+- **Pino-based**: High-performance structured logging
+- **Pretty-print in development**: Readable, colorized output via `pino-pretty`
+- **JSON in production**: Optimized for log aggregation services
+- **Automatic field redaction**: Sensitive data (authorization headers, cookies, passwords) is automatically redacted
+- **Request-scoped logger**: Each request gets a child logger with request context
+
+**Development Mode (Pretty-printed):**
 ```
-✅ GET /api/v1/users 200 - 45ms [a1b2c3d4-e5f6-7890-abcd-ef1234567890]
-⚠️  GET /api/v1/missing 404 - 12ms [b2c3d4e5-f6a7-8901-bcde-f12345678901]
-❌ POST /api/v1/error 500 - 234ms [c3d4e5f6-a7b8-9012-cdef-123456789012]
+[10:30:45.123] INFO: GET /api/v1/users 200 45ms
+    requestId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    method: "GET"
+    path: "/api/v1/users"
+    statusCode: 200
+    duration: 45
 ```
 
 **Production Mode (Structured JSON):**
 ```json
-{"requestId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","method":"GET","path":"/api/v1/users","statusCode":200,"duration":45,"timestamp":"2025-12-07T10:30:45.123Z"}
+{"level":30,"time":1733567445123,"requestId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","method":"GET","path":"/api/v1/users","statusCode":200,"duration":45,"userAgent":"Mozilla/5.0...","ip":"::1","msg":"GET /api/v1/users 200 45ms"}
 ```
 
-The structured JSON format in production is optimized for log aggregation tools like CloudWatch, Datadog, or ELK stack.
+**Using the Request-Scoped Logger:**
 
-**Custom Request Logging:**
+Each request has a child logger attached to `req.log` with the request ID automatically included. This is the recommended way to log within route handlers:
 
-If you need additional logging in your routes, use the built-in logger:
+```typescript
+import { asyncHandler } from "@/utils"
+
+router.get("/users", asyncHandler(async (req, res) => {
+  // Use req.log for request-scoped logging
+  req.log.info("Fetching users from database")
+
+  const users = await getUsers()
+  req.log.debug({ count: users.length }, "Users retrieved")
+
+  res.json({ users })
+}))
+```
+
+All logs from `req.log` automatically include the `requestId` for easy correlation.
+
+**Using the Global Logger:**
+
+For logging outside of request handlers (startup, background tasks, etc.), use the global logger:
 
 ```typescript
 import { logger } from "@/lib/logger"
 
-app.get("/api/users", (req, res) => {
-  logger.info("Fetching users...")
-  const users = getUsers()
-  logger.debug(`Retrieved ${users.length} users`)
-  res.json({ users })
-})
+// Simple message
+logger.info("Server starting...")
+
+// With additional context
+logger.info({ port: 3000, env: "production" }, "Server configuration")
+
+// Error logging with stack trace
+logger.error({ err: error }, "Failed to connect to database")
 ```
 
-Available log levels: `info`, `warn`, `error`, `debug`
+**Available Log Levels:** `trace`, `debug`, `info`, `warn`, `error`, `fatal`
+
+**Configuring Log Level:**
+
+Set the log level via environment variable:
+
+```bash
+LOG_LEVEL=debug  # Default: debug in development, info in production
+```
+
+**Automatic Field Redaction:**
+
+The logger automatically redacts sensitive fields to prevent accidental logging of secrets:
+
+- `req.headers.authorization` - Bearer tokens, API keys
+- `req.headers.cookie` - Session cookies
+- `password` - User passwords
+
+These fields appear as `[REDACTED]` in logs.
 
 #### Request Tracing
 
@@ -837,37 +968,55 @@ Use the included REST Client file at `tests/rest/requests.http` to test CORS hea
 
 #### Rate Limiting
 
-Protect your API from abuse with rate limiting:
+This template includes built-in rate limiting using `express-rate-limit`. It's already configured and enabled in `src/app.ts`.
+
+**Default Configuration:**
+
+- **Window**: 60 seconds (configurable via `RATE_LIMIT_WINDOW_MS`)
+- **Max Requests**: 100 per window (configurable via `RATE_LIMIT_MAX_REQUESTS`)
+- **Excluded Paths**: `/health`, `/ready`, `/live`, `/docs` (always accessible)
+- **Response**: JSON error with `429` status code
+
+**Environment Variables:**
 
 ```bash
-npm install express-rate-limit
+# Customize rate limiting (optional)
+RATE_LIMIT_WINDOW_MS=60000    # 1 minute window (default)
+RATE_LIMIT_MAX_REQUESTS=100   # 100 requests per window (default)
 ```
+
+**Rate Limit Response:**
+
+When rate limit is exceeded, the API returns:
+
+```json
+{
+  "error": "Too many requests, please try again later",
+  "code": "RATE_LIMIT_EXCEEDED",
+  "statusCode": 429
+}
+```
+
+**Adding Stricter Limits for Specific Routes:**
+
+For routes that need stricter limits (like authentication), create a custom limiter:
 
 ```typescript
 import rateLimit from "express-rate-limit"
 
-// Global rate limiter
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please try again later.",
-  standardHeaders: true,
-  legacyHeaders: false
-})
-
-app.use(limiter)
-
-// Stricter limit for specific routes
+// Stricter limit for auth routes
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5, // 5 attempts per hour
-  message: "Too many login attempts, please try again later."
+  message: { error: "Too many login attempts, please try again later." }
 })
 
 app.post("/api/auth/login", authLimiter, (req, res) => {
   // Login logic
 })
 ```
+
+The rate limiter implementation is in `src/middleware/rate-limiter.ts` and can be customized as needed.
 
 #### JWT Authentication
 
@@ -1932,6 +2081,11 @@ If you don't want to use Codecov, the workflow will continue without failing.
 - **cors** - Cross-Origin Resource Sharing middleware
 - **dotenv** - Load environment variables from `.env` files
 - **zod** - TypeScript-first schema validation for environment variables
+- **pino** - High-performance JSON logger for Node.js
+- **pino-pretty** - Pretty-print Pino logs in development
+- **express-rate-limit** - Basic IP rate-limiting middleware for Express
+- **jsonwebtoken** - JWT token generation and verification for authentication
+- **bcrypt** - Password hashing library for secure credential storage
 - **swagger-ui-express** - Serve auto-generated Swagger UI for API documentation
 - **swagger-jsdoc** - Generate OpenAPI specification from JSDoc comments
 
