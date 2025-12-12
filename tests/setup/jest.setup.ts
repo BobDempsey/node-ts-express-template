@@ -1,10 +1,9 @@
 // Jest setup file for global test configuration
 import { jest } from "@jest/globals"
 
-// Set test environment variables BEFORE any imports
+// Set test environment variables
 process.env.NODE_ENV = "test"
 process.env.PORT = "0" // Use random port for tests
-process.env.DD_TRACE_ENABLED = "false" // Disable Datadog tracing in tests
 
 // Global test timeout
 jest.setTimeout(10000)

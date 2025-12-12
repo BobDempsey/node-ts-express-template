@@ -29,23 +29,6 @@ const EnvSchema = z.object({
 			return val.split(",").map((origin) => origin.trim())
 		}),
 	LOG_LEVEL: z.enum(LOG_LEVEL_VALUES).optional(),
-
-	// Datadog APM Configuration
-	DD_SERVICE: z.string().default("node-ts-express-template"),
-	DD_ENV: z.string().optional(),
-	DD_VERSION: z.string().default("1.0.0"),
-	DD_AGENT_HOST: z.string().default("localhost"),
-	DD_TRACE_AGENT_PORT: z
-		.string()
-		.default("8126")
-		.transform((val) => {
-			const parsed = Number.parseInt(val, 10)
-			return Number.isNaN(parsed) ? 8126 : parsed
-		}),
-	DD_TRACE_ENABLED: z
-		.string()
-		.default("true")
-		.transform((val) => val === "true"),
 	// Rate limiting configuration
 	RATE_LIMIT_WINDOW_MS: z
 		.string()

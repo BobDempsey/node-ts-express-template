@@ -7,10 +7,10 @@ WORKDIR /app
 # Install build dependencies
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* .npmrc* ./
 RUN \
-  if [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; \
-  elif [ -f yarn.lock ]; then npm i -g yarn && yarn install --frozen-lockfile; \
-  else npm install; fi
+  if [ -f package-lock.json ]; then npm ci --ignore-scripts; \
+  elif [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile --ignore-scripts; \
+  elif [ -f yarn.lock ]; then npm i -g yarn && yarn install --frozen-lockfile --ignore-scripts; \
+  else npm install --ignore-scripts; fi
 
 # Copy source and build
 COPY tsconfig.json tsconfig.build.json ./
@@ -25,7 +25,7 @@ WORKDIR /app
 
 # Only install production dependencies
 COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev --ignore-scripts; else npm install --omit=dev --ignore-scripts; fi
 
 # Copy built artifacts from builder
 COPY --from=builder /app/dist ./dist

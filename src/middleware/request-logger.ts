@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto"
 import type { NextFunction, Request, Response } from "express"
-import { createChildLogger, getTraceContext } from "@/lib/logger"
+import { createChildLogger } from "@/lib/logger"
 
 /**
  * Request logging middleware using Pino structured logging
  * Logs HTTP method, path, status code, and response time
- * Includes request ID and Datadog trace ID for tracing
+ * Includes request ID for tracing
  * Uses JSON format for all environments
  */
 export const requestLogger = (
@@ -16,26 +16,14 @@ export const requestLogger = (
 	// Generate unique request ID
 	const requestId = randomUUID()
 
-	// Get Datadog trace context if available
-	const { trace_id: traceId, span_id: spanId } = getTraceContext()
-
 	// Add request ID to request object for potential use in other middleware
 	;(req as Request & { id: string }).id = requestId
 
 	// Add request ID to response headers
 	res.setHeader("X-Request-Id", requestId)
 
-	// Add Datadog trace ID to response headers for debugging
-	if (traceId) {
-		res.setHeader("X-Datadog-Trace-Id", traceId)
-	}
-
-	// Create child logger with request context including trace info
-	const reqLogger = createChildLogger({
-		requestId,
-		...(traceId && { traceId }),
-		...(spanId && { spanId })
-	})
+	// Create child logger with request context
+	const reqLogger = createChildLogger({ requestId })
 
 	// Attach logger to request for use in route handlers
 	;(req as Request & { log: typeof reqLogger }).log = reqLogger
