@@ -135,8 +135,9 @@ node-ts-express-template/
 ├── tests/
 │   ├── unit/               # Unit tests
 │   ├── integration/        # Integration tests
-│   ├── rest/               # VS Code REST Client requests
-│   │   └── requests.http   # HTTP request examples
+│   ├── rest/               # API testing files
+│   │   ├── requests.http   # VS Code REST Client requests
+│   │   └── postman_collection.json  # Postman collection
 │   └── setup/              # Test configuration and utilities
 │       ├── jest.setup.ts   # Jest global setup
 │       └── test-utils.ts   # Test helper utilities
@@ -1828,7 +1829,7 @@ describe("API Tests", () => {
 
 ### Manual API Testing
 
-This project includes configuration for manual API testing using the VS Code REST Client extension.
+This project includes configuration for manual API testing using VS Code REST Client and Postman.
 
 #### VS Code REST Client
 
@@ -1845,6 +1846,23 @@ REST Client requests are available in [tests/rest/requests.http](tests/rest/requ
 - Variable support with `@baseUrl`
 - Multiple requests in a single file
 - Inline response viewing
+
+#### Postman Collection
+
+A comprehensive Postman collection is available at [tests/rest/postman_collection.json](tests/rest/postman_collection.json).
+
+**Quick Start:**
+1. Open Postman
+2. Click "Import" → Select `tests/rest/postman_collection.json`
+3. Start the server: `npm run dev`
+4. Run requests from the collection
+
+**Features:**
+- Organized request folders (Health, Auth, API v1, etc.)
+- Collection variables for `baseUrl`, `accessToken`, `refreshToken`
+- Auto-save tokens on login for authenticated requests
+- Request descriptions and expected responses
+- JWT authentication flow with test scripts
 
 #### Understanding Expected Responses
 
