@@ -1375,7 +1375,7 @@ The template automatically switches to structured JSON logging in production for
 - AWS CloudWatch Logs
 - Google Cloud Logging
 - Azure Monitor
-- Datadog
+- Sentry
 - ELK Stack (Elasticsearch, Logstash, Kibana)
 - Splunk
 - New Relic

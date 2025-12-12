@@ -62,7 +62,25 @@ const EnvSchema = z.object({
 		.transform((val) => val === "true"),
 	JWT_SECRET: z.string().min(32).optional(),
 	JWT_EXPIRY: z.string().default("1h"),
-	JWT_REFRESH_EXPIRY: z.string().default("7d")
+	JWT_REFRESH_EXPIRY: z.string().default("7d"),
+	// Sentry configuration (optional - enable by setting SENTRY_DSN)
+	SENTRY_DSN: z.string().url().optional(),
+	SENTRY_ENVIRONMENT: z.enum(NODE_ENV_VALUES).optional(),
+	SENTRY_RELEASE: z.string().optional(),
+	SENTRY_TRACES_SAMPLE_RATE: z
+		.string()
+		.default("1.0")
+		.transform((val) => {
+			const parsed = Number.parseFloat(val)
+			return Number.isNaN(parsed) ? 1.0 : Math.min(1, Math.max(0, parsed))
+		}),
+	SENTRY_PROFILES_SAMPLE_RATE: z
+		.string()
+		.default("1.0")
+		.transform((val) => {
+			const parsed = Number.parseFloat(val)
+			return Number.isNaN(parsed) ? 1.0 : Math.min(1, Math.max(0, parsed))
+		})
 })
 
 export type EnvSchema = z.infer<typeof EnvSchema>

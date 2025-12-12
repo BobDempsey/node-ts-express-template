@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node"
 import cors from "cors"
 import dotenv from "dotenv"
 import express, { type Request, type Response } from "express"
@@ -26,7 +27,7 @@ const corsOptions = {
 	origin: env.CORS_ORIGIN ?? true, // Allow all origins in development, or use configured origins
 	credentials: true, // Allow cookies and credentials
 	methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-	allowedHeaders: ["Content-Type", "Authorization"],
+	allowedHeaders: ["Content-Type", "Authorization", "sentry-trace", "baggage"],
 	exposedHeaders: ["Content-Length", "X-Request-Id"],
 	maxAge: 86400 // 24 hours
 }
@@ -64,6 +65,11 @@ app.get("/", (_req: Request, res: Response) => {
 app.use((_req: Request, res: Response) => {
 	res.status(404).json({ error: "Not Found" })
 })
+
+// Sentry error handler - must be before custom error handler
+if (process.env.SENTRY_DSN) {
+	Sentry.setupExpressErrorHandler(app)
+}
 
 // Centralized error handler (must be last)
 app.use(errorHandler)
