@@ -37,6 +37,7 @@ const mockChildLogger = {
 
 jest.mock("@/lib/logger", () => ({
 	createChildLogger: jest.fn(() => mockChildLogger),
+	getTraceContext: jest.fn(() => ({ trace_id: "", span_id: "" })),
 	logger: {
 		info: jest.fn(),
 		error: jest.fn(),

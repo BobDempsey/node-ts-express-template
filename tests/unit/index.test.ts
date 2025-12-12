@@ -27,7 +27,8 @@ jest.mock("@/lib/logger", () => ({
 		debug: mockLoggerDebug,
 		fatal: mockLoggerFatal
 	},
-	createChildLogger: jest.fn(() => mockChildLogger)
+	createChildLogger: jest.fn(() => mockChildLogger),
+	getTraceContext: jest.fn(() => ({ trace_id: "", span_id: "" }))
 }))
 
 // Mock the rate-limiter to avoid express-rate-limit validation issues in tests

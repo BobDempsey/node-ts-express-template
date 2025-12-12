@@ -1,3 +1,6 @@
+// CRITICAL: Import tracer FIRST before any other imports for dd-trace instrumentation
+import "./lib/tracer"
+
 import { app } from "@/app"
 import env from "@/lib/env"
 import { logger } from "@/lib/logger"
