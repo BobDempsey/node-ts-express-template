@@ -1788,6 +1788,32 @@ This template uses Husky and lint-staged to ensure code quality before commits:
 
 The pre-commit hook runs `biome check --write` on all staged files, ensuring that only properly formatted and linted code is committed.
 
+### Commit Message Convention
+
+This project enforces [Conventional Commits](https://www.conventionalcommits.org/) using commitlint. All commit messages must follow this format:
+
+```
+<type>(<scope>): <subject>
+```
+
+**Allowed Types:**
+- `feat` - New feature
+- `fix` - Bug fix
+- `docs` - Documentation changes
+- `style` - Code style changes (formatting, semicolons, etc.)
+- `refactor` - Code refactoring (no feature or bug fix)
+- `test` - Adding or updating tests
+- `chore` - Maintenance tasks (dependencies, configs, etc.)
+
+**Examples:**
+```bash
+git commit -m "feat: add user authentication"
+git commit -m "fix(api): resolve rate limiting issue"
+git commit -m "docs: update README with new endpoints"
+```
+
+Invalid commit messages will be rejected by the commit-msg hook.
+
 ### Testing
 
 Run the test suite:
