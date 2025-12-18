@@ -315,4 +315,221 @@ describe("Environment Configuration", () => {
 			expect(schema.parse({}).ENABLE_JWT_AUTH).toBe(false)
 		})
 	})
+
+	describe("Sample Rate Clamping Edge Cases", () => {
+		it("should clamp SENTRY_TRACES_SAMPLE_RATE values above 1.0 to 1.0", () => {
+			const schema = z.object({
+				SENTRY_TRACES_SAMPLE_RATE: z
+					.string()
+					.default("1.0")
+					.transform((val) => {
+						const parsed = Number.parseFloat(val)
+						return Number.isNaN(parsed) ? 1.0 : Math.min(1, Math.max(0, parsed))
+					})
+			})
+
+			expect(
+				schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "1.5" })
+					.SENTRY_TRACES_SAMPLE_RATE
+			).toBe(1.0)
+			expect(
+				schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "5.0" })
+					.SENTRY_TRACES_SAMPLE_RATE
+			).toBe(1.0)
+			expect(
+				schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "100" })
+					.SENTRY_TRACES_SAMPLE_RATE
+			).toBe(1.0)
+		})
+
+		it("should clamp SENTRY_TRACES_SAMPLE_RATE values below 0 to 0", () => {
+			const schema = z.object({
+				SENTRY_TRACES_SAMPLE_RATE: z
+					.string()
+					.default("1.0")
+					.transform((val) => {
+						const parsed = Number.parseFloat(val)
+						return Number.isNaN(parsed) ? 1.0 : Math.min(1, Math.max(0, parsed))
+					})
+			})
+
+			expect(
+				schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "-0.1" })
+					.SENTRY_TRACES_SAMPLE_RATE
+			).toBe(0)
+			expect(
+				schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "-5" })
+					.SENTRY_TRACES_SAMPLE_RATE
+			).toBe(0)
+		})
+
+		it("should clamp SENTRY_PROFILES_SAMPLE_RATE values above 1.0 to 1.0", () => {
+			const schema = z.object({
+				SENTRY_PROFILES_SAMPLE_RATE: z
+					.string()
+					.default("1.0")
+					.transform((val) => {
+						const parsed = Number.parseFloat(val)
+						return Number.isNaN(parsed) ? 1.0 : Math.min(1, Math.max(0, parsed))
+					})
+			})
+
+			expect(
+				schema.parse({ SENTRY_PROFILES_SAMPLE_RATE: "2.0" })
+					.SENTRY_PROFILES_SAMPLE_RATE
+			).toBe(1.0)
+			expect(
+				schema.parse({ SENTRY_PROFILES_SAMPLE_RATE: "10" })
+					.SENTRY_PROFILES_SAMPLE_RATE
+			).toBe(1.0)
+		})
+
+		it("should clamp SENTRY_PROFILES_SAMPLE_RATE values below 0 to 0", () => {
+			const schema = z.object({
+				SENTRY_PROFILES_SAMPLE_RATE: z
+					.string()
+					.default("1.0")
+					.transform((val) => {
+						const parsed = Number.parseFloat(val)
+						return Number.isNaN(parsed) ? 1.0 : Math.min(1, Math.max(0, parsed))
+					})
+			})
+
+			expect(
+				schema.parse({ SENTRY_PROFILES_SAMPLE_RATE: "-1" })
+					.SENTRY_PROFILES_SAMPLE_RATE
+			).toBe(0)
+			expect(
+				schema.parse({ SENTRY_PROFILES_SAMPLE_RATE: "-0.5" })
+					.SENTRY_PROFILES_SAMPLE_RATE
+			).toBe(0)
+		})
+
+		it("should pass through valid SENTRY_TRACES_SAMPLE_RATE values between 0 and 1", () => {
+			const schema = z.object({
+				SENTRY_TRACES_SAMPLE_RATE: z
+					.string()
+					.default("1.0")
+					.transform((val) => {
+						const parsed = Number.parseFloat(val)
+						return Number.isNaN(parsed) ? 1.0 : Math.min(1, Math.max(0, parsed))
+					})
+			})
+
+			expect(
+				schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "0.5" })
+					.SENTRY_TRACES_SAMPLE_RATE
+			).toBe(0.5)
+			expect(
+				schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "0" })
+					.SENTRY_TRACES_SAMPLE_RATE
+			).toBe(0)
+			expect(
+				schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "1" })
+					.SENTRY_TRACES_SAMPLE_RATE
+			).toBe(1)
+			expect(
+				schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "0.25" })
+					.SENTRY_TRACES_SAMPLE_RATE
+			).toBe(0.25)
+		})
+
+		it("should pass through valid SENTRY_PROFILES_SAMPLE_RATE values between 0 and 1", () => {
+			const schema = z.object({
+				SENTRY_PROFILES_SAMPLE_RATE: z
+					.string()
+					.default("1.0")
+					.transform((val) => {
+						const parsed = Number.parseFloat(val)
+						return Number.isNaN(parsed) ? 1.0 : Math.min(1, Math.max(0, parsed))
+					})
+			})
+
+			expect(
+				schema.parse({ SENTRY_PROFILES_SAMPLE_RATE: "0.75" })
+					.SENTRY_PROFILES_SAMPLE_RATE
+			).toBe(0.75)
+			expect(
+				schema.parse({ SENTRY_PROFILES_SAMPLE_RATE: "0" })
+					.SENTRY_PROFILES_SAMPLE_RATE
+			).toBe(0)
+			expect(
+				schema.parse({ SENTRY_PROFILES_SAMPLE_RATE: "1" })
+					.SENTRY_PROFILES_SAMPLE_RATE
+			).toBe(1)
+		})
+	})
+
+	describe("Rate Limit and Timeout NaN Fallback Edge Cases", () => {
+		it("should default RATE_LIMIT_WINDOW_MS to 60000 for various non-numeric strings", () => {
+			const schema = z.object({
+				RATE_LIMIT_WINDOW_MS: z
+					.string()
+					.default("60000")
+					.transform((val) => {
+						const parsed = Number.parseInt(val, 10)
+						return Number.isNaN(parsed) ? 60000 : parsed
+					})
+					.optional()
+			})
+
+			expect(
+				schema.parse({ RATE_LIMIT_WINDOW_MS: "" }).RATE_LIMIT_WINDOW_MS
+			).toBe(60000)
+			expect(
+				schema.parse({ RATE_LIMIT_WINDOW_MS: "   " }).RATE_LIMIT_WINDOW_MS
+			).toBe(60000)
+			expect(
+				schema.parse({ RATE_LIMIT_WINDOW_MS: "NaN" }).RATE_LIMIT_WINDOW_MS
+			).toBe(60000)
+		})
+
+		it("should default RATE_LIMIT_MAX_REQUESTS to 100 for various non-numeric strings", () => {
+			const schema = z.object({
+				RATE_LIMIT_MAX_REQUESTS: z
+					.string()
+					.default("100")
+					.transform((val) => {
+						const parsed = Number.parseInt(val, 10)
+						return Number.isNaN(parsed) ? 100 : parsed
+					})
+					.optional()
+			})
+
+			expect(
+				schema.parse({ RATE_LIMIT_MAX_REQUESTS: "" }).RATE_LIMIT_MAX_REQUESTS
+			).toBe(100)
+			expect(
+				schema.parse({ RATE_LIMIT_MAX_REQUESTS: "undefined" })
+					.RATE_LIMIT_MAX_REQUESTS
+			).toBe(100)
+			expect(
+				schema.parse({ RATE_LIMIT_MAX_REQUESTS: "null" })
+					.RATE_LIMIT_MAX_REQUESTS
+			).toBe(100)
+		})
+
+		it("should default SHUTDOWN_TIMEOUT_MS to 30000 for various non-numeric strings", () => {
+			const schema = z.object({
+				SHUTDOWN_TIMEOUT_MS: z
+					.string()
+					.default("30000")
+					.transform((val) => {
+						const parsed = Number.parseInt(val, 10)
+						return Number.isNaN(parsed) ? 30000 : parsed
+					})
+					.optional()
+			})
+
+			expect(
+				schema.parse({ SHUTDOWN_TIMEOUT_MS: "" }).SHUTDOWN_TIMEOUT_MS
+			).toBe(30000)
+			expect(
+				schema.parse({ SHUTDOWN_TIMEOUT_MS: "infinity" }).SHUTDOWN_TIMEOUT_MS
+			).toBe(30000)
+			expect(
+				schema.parse({ SHUTDOWN_TIMEOUT_MS: "1e10" }).SHUTDOWN_TIMEOUT_MS
+			).toBe(1)
+		})
+	})
 })

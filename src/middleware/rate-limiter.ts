@@ -11,12 +11,47 @@ const EXCLUDED_PATHS = ["/health", "/ready", "/live", "/docs"]
 
 /**
  * Check if a request path should be excluded from rate limiting
+ * Exported for testing
  */
-const shouldSkip = (req: Request): boolean => {
+export const shouldSkip = (req: Request): boolean => {
 	const path = req.path
 	return EXCLUDED_PATHS.some(
 		(excluded) => path === excluded || path.startsWith(`${excluded}/`)
 	)
+}
+
+/**
+ * Handler for rate limit exceeded events
+ * Exported for testing
+ */
+export const rateLimitHandler = (req: Request, res: Response): void => {
+	const requestId = (req as Request & { id?: string }).id
+
+	// Log the rate limit event
+	logger.warn(
+		{
+			requestId,
+			ip: req.ip,
+			path: req.path,
+			method: req.method
+		},
+		`Rate limit exceeded for ${req.ip}`
+	)
+
+	// Return JSON response matching AppError format
+	res.status(429).json({
+		error: "Too many requests, please try again later",
+		code: "RATE_LIMIT_EXCEEDED",
+		statusCode: 429
+	})
+}
+
+/**
+ * Key generator for rate limiting - uses IP address
+ * Exported for testing
+ */
+export const rateLimitKeyGenerator = (req: Request): string => {
+	return req.ip || req.socket.remoteAddress || "unknown"
 }
 
 /**
@@ -44,32 +79,10 @@ export const rateLimiter = rateLimit({
 	skip: shouldSkip,
 
 	// Custom handler for rate limit exceeded
-	handler: (req: Request, res: Response) => {
-		const requestId = (req as Request & { id?: string }).id
-
-		// Log the rate limit event
-		logger.warn(
-			{
-				requestId,
-				ip: req.ip,
-				path: req.path,
-				method: req.method
-			},
-			`Rate limit exceeded for ${req.ip}`
-		)
-
-		// Return JSON response matching AppError format
-		res.status(429).json({
-			error: "Too many requests, please try again later",
-			code: "RATE_LIMIT_EXCEEDED",
-			statusCode: 429
-		})
-	},
+	handler: rateLimitHandler,
 
 	// Key generator - use IP address (handles both IPv4 and IPv6)
-	keyGenerator: (req: Request): string => {
-		return req.ip || req.socket.remoteAddress || "unknown"
-	},
+	keyGenerator: rateLimitKeyGenerator,
 
 	// Disable validation checks that don't apply to our setup
 	// - xForwardedForHeader: We handle proxy headers at infrastructure level

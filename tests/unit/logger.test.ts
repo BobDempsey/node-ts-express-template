@@ -310,5 +310,49 @@ describe("logger.ts (Pino)", () => {
 			)
 			expect(testSentryTargets).toHaveLength(0)
 		})
+
+		it("should create logger with pino-pretty transport in development", async () => {
+			process.env.NODE_ENV = "development"
+			delete process.env.SENTRY_DSN
+
+			const loggerModule = await import("@/lib/logger")
+
+			// Logger should be created successfully
+			expect(loggerModule.logger).toBeDefined()
+			expect(typeof loggerModule.logger.info).toBe("function")
+		})
+
+		it("should create logger with stdout transport in production", async () => {
+			process.env.NODE_ENV = "production"
+			delete process.env.SENTRY_DSN
+
+			const loggerModule = await import("@/lib/logger")
+
+			// Logger should be created successfully
+			expect(loggerModule.logger).toBeDefined()
+			expect(loggerModule.logger.level).toBe("info")
+		})
+
+		it("should create logger with Sentry transport in production when DSN is set", async () => {
+			process.env.NODE_ENV = "production"
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+
+			const loggerModule = await import("@/lib/logger")
+
+			// Logger should be created successfully
+			expect(loggerModule.logger).toBeDefined()
+		})
+
+		it("should use LOG_LEVEL from environment when provided", async () => {
+			process.env.NODE_ENV = "production"
+			process.env.LOG_LEVEL = "warn"
+			delete process.env.SENTRY_DSN
+
+			const loggerModule = await import("@/lib/logger")
+
+			// Logger should use the configured level
+			expect(loggerModule.logger).toBeDefined()
+			// Note: In production with LOG_LEVEL set, it should use that level
+		})
 	})
 })

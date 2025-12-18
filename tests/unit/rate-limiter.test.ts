@@ -22,7 +22,7 @@
  *    - Should include rate limit headers
  */
 
-import type { Request } from "express"
+import type { Request, Response } from "express"
 
 // Mock logger before importing rate-limiter
 const mockLoggerWarn = jest.fn()
@@ -43,62 +43,69 @@ jest.mock("@/lib/env", () => ({
 	}
 }))
 
+// Import the actual exported functions after mocks are set up
+import {
+	rateLimitHandler,
+	rateLimitKeyGenerator,
+	shouldSkip
+} from "@/middleware/rate-limiter"
+
 describe("Rate Limiter Middleware", () => {
 	beforeEach(() => {
 		jest.clearAllMocks()
 	})
 
-	describe("Skip Logic", () => {
-		// We need to test the skip function logic
-		// Since rateLimiter is created at module load time, we test the behavior
-
-		const testSkipPath = (path: string, shouldSkip: boolean) => {
-			// The skip function checks if path matches excluded paths
-			const excludedPaths = ["/health", "/ready", "/live", "/docs"]
-			const result = excludedPaths.some(
-				(excluded) => path === excluded || path.startsWith(`${excluded}/`)
-			)
-			expect(result).toBe(shouldSkip)
-		}
+	describe("Skip Logic (shouldSkip function)", () => {
+		// Test the actual exported shouldSkip function
 
 		it("should identify /health as skippable", () => {
-			testSkipPath("/health", true)
+			const req = { path: "/health" } as Request
+			expect(shouldSkip(req)).toBe(true)
 		})
 
 		it("should identify /ready as skippable", () => {
-			testSkipPath("/ready", true)
+			const req = { path: "/ready" } as Request
+			expect(shouldSkip(req)).toBe(true)
 		})
 
 		it("should identify /live as skippable", () => {
-			testSkipPath("/live", true)
+			const req = { path: "/live" } as Request
+			expect(shouldSkip(req)).toBe(true)
 		})
 
 		it("should identify /docs as skippable", () => {
-			testSkipPath("/docs", true)
+			const req = { path: "/docs" } as Request
+			expect(shouldSkip(req)).toBe(true)
 		})
 
 		it("should identify /docs/swagger.json as skippable", () => {
-			testSkipPath("/docs/swagger.json", true)
+			const req = { path: "/docs/swagger.json" } as Request
+			expect(shouldSkip(req)).toBe(true)
 		})
 
 		it("should identify /docs/something/else as skippable", () => {
-			testSkipPath("/docs/something/else", true)
+			const req = { path: "/docs/something/else" } as Request
+			expect(shouldSkip(req)).toBe(true)
 		})
 
 		it("should not skip /api/v1/example", () => {
-			testSkipPath("/api/v1/example", false)
+			const req = { path: "/api/v1/example" } as Request
+			expect(shouldSkip(req)).toBe(false)
 		})
 
 		it("should not skip root path /", () => {
-			testSkipPath("/", false)
+			const req = { path: "/" } as Request
+			expect(shouldSkip(req)).toBe(false)
 		})
 
 		it("should not skip /healthy (similar but different)", () => {
-			testSkipPath("/healthy", false)
+			const req = { path: "/healthy" } as Request
+			expect(shouldSkip(req)).toBe(false)
 		})
 
 		it("should not skip /documentation (similar but different)", () => {
-			testSkipPath("/documentation", false)
+			const req = { path: "/documentation" } as Request
+			expect(shouldSkip(req)).toBe(false)
 		})
 	})
 
@@ -166,16 +173,14 @@ describe("Rate Limiter Middleware", () => {
 		})
 	})
 
-	describe("Key Generator", () => {
+	describe("Key Generator (rateLimitKeyGenerator function)", () => {
 		it("should use IP address for rate limiting key", () => {
 			const mockRequest = {
 				ip: "192.168.1.1",
 				socket: { remoteAddress: "192.168.1.2" }
 			} as unknown as Request
 
-			// Test key generation logic
-			const key =
-				mockRequest.ip || mockRequest.socket.remoteAddress || "unknown"
+			const key = rateLimitKeyGenerator(mockRequest)
 			expect(key).toBe("192.168.1.1")
 		})
 
@@ -185,8 +190,7 @@ describe("Rate Limiter Middleware", () => {
 				socket: { remoteAddress: "192.168.1.2" }
 			} as unknown as Request
 
-			const key =
-				mockRequest.ip || mockRequest.socket.remoteAddress || "unknown"
+			const key = rateLimitKeyGenerator(mockRequest)
 			expect(key).toBe("192.168.1.2")
 		})
 
@@ -196,61 +200,124 @@ describe("Rate Limiter Middleware", () => {
 				socket: { remoteAddress: undefined }
 			} as unknown as Request
 
-			const key =
-				mockRequest.ip || mockRequest.socket.remoteAddress || "unknown"
+			const key = rateLimitKeyGenerator(mockRequest)
 			expect(key).toBe("unknown")
+		})
+
+		it("should handle empty string ip by falling back to socket.remoteAddress", () => {
+			const mockRequest = {
+				ip: "",
+				socket: { remoteAddress: "10.0.0.1" }
+			} as unknown as Request
+
+			const key = rateLimitKeyGenerator(mockRequest)
+			expect(key).toBe("10.0.0.1")
 		})
 	})
 
-	describe("Rate Limiter Handler Logic", () => {
-		it("should define correct handler response structure", () => {
-			// Test the expected handler response structure
-			const expectedResponse = {
-				error: "Too many requests, please try again later",
-				code: "RATE_LIMIT_EXCEEDED",
-				statusCode: 429
-			}
-
-			expect(expectedResponse.error).toBe(
-				"Too many requests, please try again later"
-			)
-			expect(expectedResponse.code).toBe("RATE_LIMIT_EXCEEDED")
-			expect(expectedResponse.statusCode).toBe(429)
-		})
-
-		it("should define correct log structure for rate limit events", () => {
-			// Test the expected log structure
+	describe("Rate Limiter Handler (rateLimitHandler function)", () => {
+		it("should return 429 status with correct JSON response", () => {
 			const mockReq = {
 				ip: "127.0.0.1",
 				path: "/api/test",
 				method: "GET",
 				id: "test-request-id"
-			}
+			} as unknown as Request
 
-			const logPayload = {
-				requestId: (mockReq as { id?: string }).id,
-				ip: mockReq.ip,
-				path: mockReq.path,
-				method: mockReq.method
-			}
+			const mockJson = jest.fn()
+			const mockStatus = jest.fn().mockReturnValue({ json: mockJson })
+			const mockRes = {
+				status: mockStatus
+			} as unknown as Response
 
-			expect(logPayload).toHaveProperty("requestId", "test-request-id")
-			expect(logPayload).toHaveProperty("ip", "127.0.0.1")
-			expect(logPayload).toHaveProperty("path", "/api/test")
-			expect(logPayload).toHaveProperty("method", "GET")
+			rateLimitHandler(mockReq, mockRes)
+
+			expect(mockStatus).toHaveBeenCalledWith(429)
+			expect(mockJson).toHaveBeenCalledWith({
+				error: "Too many requests, please try again later",
+				code: "RATE_LIMIT_EXCEEDED",
+				statusCode: 429
+			})
+		})
+
+		it("should log rate limit event with correct structure", () => {
+			const mockReq = {
+				ip: "192.168.1.100",
+				path: "/api/users",
+				method: "POST",
+				id: "req-12345"
+			} as unknown as Request
+
+			const mockJson = jest.fn()
+			const mockStatus = jest.fn().mockReturnValue({ json: mockJson })
+			const mockRes = {
+				status: mockStatus
+			} as unknown as Response
+
+			rateLimitHandler(mockReq, mockRes)
+
+			expect(mockLoggerWarn).toHaveBeenCalledWith(
+				{
+					requestId: "req-12345",
+					ip: "192.168.1.100",
+					path: "/api/users",
+					method: "POST"
+				},
+				"Rate limit exceeded for 192.168.1.100"
+			)
 		})
 
 		it("should handle request without id property", () => {
 			const mockReq = {
-				ip: "127.0.0.1",
-				path: "/api/test",
+				ip: "10.0.0.1",
+				path: "/api/data",
 				method: "GET"
 				// No id property
-			}
+			} as unknown as Request
 
-			const requestId = (mockReq as { id?: string }).id
+			const mockJson = jest.fn()
+			const mockStatus = jest.fn().mockReturnValue({ json: mockJson })
+			const mockRes = {
+				status: mockStatus
+			} as unknown as Response
 
-			expect(requestId).toBeUndefined()
+			rateLimitHandler(mockReq, mockRes)
+
+			expect(mockLoggerWarn).toHaveBeenCalledWith(
+				{
+					requestId: undefined,
+					ip: "10.0.0.1",
+					path: "/api/data",
+					method: "GET"
+				},
+				"Rate limit exceeded for 10.0.0.1"
+			)
+		})
+
+		it("should handle undefined ip in log message", () => {
+			const mockReq = {
+				ip: undefined,
+				path: "/api/test",
+				method: "DELETE"
+			} as unknown as Request
+
+			const mockJson = jest.fn()
+			const mockStatus = jest.fn().mockReturnValue({ json: mockJson })
+			const mockRes = {
+				status: mockStatus
+			} as unknown as Response
+
+			rateLimitHandler(mockReq, mockRes)
+
+			expect(mockLoggerWarn).toHaveBeenCalledWith(
+				{
+					requestId: undefined,
+					ip: undefined,
+					path: "/api/test",
+					method: "DELETE"
+				},
+				"Rate limit exceeded for undefined"
+			)
 		})
 	})
 })

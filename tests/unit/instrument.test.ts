@@ -6,6 +6,22 @@
  * Due to module caching, we test the logic patterns rather than actual module re-imports.
  */
 
+// Store original env
+const originalEnv = process.env
+
+// Mock Sentry before any imports
+const mockSentryInit = jest.fn()
+jest.mock("@sentry/node", () => ({
+	init: mockSentryInit,
+	httpIntegration: jest.fn().mockReturnValue({}),
+	expressIntegration: jest.fn().mockReturnValue({})
+}))
+
+// Mock dotenv
+jest.mock("dotenv", () => ({
+	config: jest.fn()
+}))
+
 describe("Sentry Instrument Module", () => {
 	describe("Initialization Logic", () => {
 		it("should not initialize Sentry when DSN is not provided", () => {
@@ -341,6 +357,206 @@ describe("Sentry Instrument Module", () => {
 			const { Sentry } = await import("@/instrument")
 
 			expect(Sentry).toBeDefined()
+		})
+	})
+
+	describe("Actual Module Initialization", () => {
+		beforeEach(() => {
+			jest.resetModules()
+			mockSentryInit.mockClear()
+			process.env = { ...originalEnv }
+		})
+
+		afterAll(() => {
+			process.env = originalEnv
+		})
+
+		it("should call Sentry.init when SENTRY_DSN is provided", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			process.env.NODE_ENV = "test"
+
+			await import("@/instrument")
+
+			expect(mockSentryInit).toHaveBeenCalled()
+		})
+
+		it("should not call Sentry.init when SENTRY_DSN is not provided", async () => {
+			delete process.env.SENTRY_DSN
+			process.env.NODE_ENV = "test"
+
+			await import("@/instrument")
+
+			expect(mockSentryInit).not.toHaveBeenCalled()
+		})
+
+		it("should pass correct environment to Sentry.init", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			process.env.SENTRY_ENVIRONMENT = "staging"
+			process.env.NODE_ENV = "production"
+
+			await import("@/instrument")
+
+			expect(mockSentryInit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					environment: "staging"
+				})
+			)
+		})
+
+		it("should fall back to NODE_ENV when SENTRY_ENVIRONMENT not set", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			delete process.env.SENTRY_ENVIRONMENT
+			process.env.NODE_ENV = "production"
+
+			await import("@/instrument")
+
+			expect(mockSentryInit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					environment: "production"
+				})
+			)
+		})
+
+		it("should include release when SENTRY_RELEASE is set", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			process.env.SENTRY_RELEASE = "v1.2.3"
+			process.env.NODE_ENV = "test"
+
+			await import("@/instrument")
+
+			expect(mockSentryInit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					release: "v1.2.3"
+				})
+			)
+		})
+
+		it("should not include release when SENTRY_RELEASE is not set", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			delete process.env.SENTRY_RELEASE
+			process.env.NODE_ENV = "test"
+
+			await import("@/instrument")
+
+			const initCall = mockSentryInit.mock.calls[0][0]
+			expect(initCall).not.toHaveProperty("release")
+		})
+
+		it("should parse SENTRY_TRACES_SAMPLE_RATE correctly", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			process.env.SENTRY_TRACES_SAMPLE_RATE = "0.5"
+			process.env.NODE_ENV = "test"
+
+			await import("@/instrument")
+
+			expect(mockSentryInit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					tracesSampleRate: 0.5
+				})
+			)
+		})
+
+		it("should enable debug in non-production when SENTRY_DEBUG is true", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			process.env.SENTRY_DEBUG = "true"
+			process.env.NODE_ENV = "development"
+
+			await import("@/instrument")
+
+			expect(mockSentryInit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					debug: true
+				})
+			)
+		})
+
+		it("should not enable debug in production even when SENTRY_DEBUG is true", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			process.env.SENTRY_DEBUG = "true"
+			process.env.NODE_ENV = "production"
+
+			await import("@/instrument")
+
+			expect(mockSentryInit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					debug: false
+				})
+			)
+		})
+
+		it("should include beforeSend function that redacts authorization header", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			process.env.NODE_ENV = "test"
+
+			await import("@/instrument")
+
+			const initCall = mockSentryInit.mock.calls[0][0]
+			expect(initCall.beforeSend).toBeDefined()
+
+			// Test the beforeSend function
+			const event = {
+				request: {
+					headers: {
+						authorization: "Bearer secret-token",
+						"content-type": "application/json"
+					}
+				}
+			}
+
+			const result = initCall.beforeSend(event)
+
+			expect(result.request.headers.authorization).toBe("[REDACTED]")
+			expect(result.request.headers["content-type"]).toBe("application/json")
+		})
+
+		it("should include beforeSend function that redacts cookie header", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			process.env.NODE_ENV = "test"
+
+			await import("@/instrument")
+
+			const initCall = mockSentryInit.mock.calls[0][0]
+			const event = {
+				request: {
+					headers: {
+						cookie: "session=abc123"
+					}
+				}
+			}
+
+			const result = initCall.beforeSend(event)
+
+			expect(result.request.headers.cookie).toBe("[REDACTED]")
+		})
+
+		it("should include beforeSend function that handles events without request", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			process.env.NODE_ENV = "test"
+
+			await import("@/instrument")
+
+			const initCall = mockSentryInit.mock.calls[0][0]
+			const event = { message: "test error" }
+
+			expect(() => initCall.beforeSend(event)).not.toThrow()
+		})
+
+		it("should include beforeSend function that handles empty headers", async () => {
+			process.env.SENTRY_DSN = "https://test@sentry.io/123"
+			process.env.NODE_ENV = "test"
+
+			await import("@/instrument")
+
+			const initCall = mockSentryInit.mock.calls[0][0]
+			const event = {
+				request: {
+					headers: {}
+				}
+			}
+
+			const result = initCall.beforeSend(event)
+
+			expect(result.request.headers).toEqual({})
 		})
 	})
 })

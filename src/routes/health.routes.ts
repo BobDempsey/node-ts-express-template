@@ -4,6 +4,31 @@ import { sendError, sendSuccess } from "@/utils"
 const router = Router()
 
 /**
+ * Check if the service is ready to accept requests.
+ * Override this function to add actual dependency checks.
+ * Exported for testing purposes.
+ */
+export let checkReadiness = (): boolean => {
+	// TODO: Add actual dependency checks when needed
+	// For now, if the server is running, it's ready
+	return true
+}
+
+/**
+ * Set a custom readiness check function (useful for testing)
+ */
+export const setReadinessCheck = (check: () => boolean): void => {
+	checkReadiness = check
+}
+
+/**
+ * Reset readiness check to default (useful for testing cleanup)
+ */
+export const resetReadinessCheck = (): void => {
+	checkReadiness = () => true
+}
+
+/**
  * @openapi
  * /health:
  *   get:
@@ -67,9 +92,7 @@ router.get("/health", (_req: Request, res: Response) => {
  *                   format: date-time
  */
 router.get("/ready", (_req: Request, res: Response) => {
-	// TODO: Add actual dependency checks when needed
-	// For now, if the server is running, it's ready
-	const isReady = true
+	const isReady = checkReadiness()
 
 	if (isReady) {
 		sendSuccess(res, { status: "ready" })

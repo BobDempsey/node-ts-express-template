@@ -1,10 +1,16 @@
 import request from "supertest"
 import { app } from "@/app"
 import server from "@/index"
+import { resetReadinessCheck, setReadinessCheck } from "@/routes/health.routes"
 
 describe("Health Check Endpoints Integration Tests", () => {
 	afterAll((done) => {
 		server.close(done)
+	})
+
+	afterEach(() => {
+		// Reset readiness check after each test
+		resetReadinessCheck()
 	})
 
 	describe("GET /health", () => {
@@ -94,6 +100,29 @@ describe("Health Check Endpoints Integration Tests", () => {
 				expect(response.status).toBe(200)
 				expect(response.body.data.status).toBe("ready")
 			}
+		})
+
+		it("should return 503 when service is not ready", async () => {
+			// Override readiness check to return false
+			setReadinessCheck(() => false)
+
+			const response = await request(app).get("/ready")
+
+			expect(response.status).toBe(503)
+			expect(response.body).toHaveProperty("success", false)
+			expect(response.body).toHaveProperty("error")
+			expect(response.body.error).toHaveProperty("message", "Service not ready")
+			expect(response.body.error).toHaveProperty("code", "SERVICE_NOT_READY")
+		})
+
+		it("should return correct error structure when not ready", async () => {
+			setReadinessCheck(() => false)
+
+			const response = await request(app).get("/ready")
+
+			expect(response.status).toBe(503)
+			expect(response.headers["content-type"]).toMatch(/application\/json/)
+			expect(response.body.error).toHaveProperty("statusCode", 503)
 		})
 	})
 
