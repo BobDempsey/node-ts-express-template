@@ -16,7 +16,7 @@ Try the live demo at: [https://node-ts-express-template.onrender.com/](https://n
 - ⚡ **Express.js** - Fast, unopinionated web framework with TypeScript support
 - 🚀 **TypeScript** - Full TypeScript support with strict type checking
 - 🔄 **Hot Reload** - Automatic restart on file changes during development
-- 📦 **Modern Node.js** - Targets ES2020 and Node.js 24+
+- 📦 **Modern Node.js** - Targets ES2020 and Node.js 22+
 - 🛠️ **Development Ready** - Pre-configured build and development scripts
 - 🔒 **Type-Safe Environment** - Zod-based environment variable validation and type safety
 - 🧪 **Testing Suite** - Jest and Supertest for comprehensive unit and integration testing
@@ -162,7 +162,7 @@ node-ts-express-template/
 
 ### Prerequisites
 
-- Node.js 24.0.0 or higher
+- Node.js 22.0.0 or higher
 - npm 10.0.0 or higher
 
 ### Installation
