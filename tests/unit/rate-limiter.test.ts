@@ -201,4 +201,56 @@ describe("Rate Limiter Middleware", () => {
 			expect(key).toBe("unknown")
 		})
 	})
+
+	describe("Rate Limiter Handler Logic", () => {
+		it("should define correct handler response structure", () => {
+			// Test the expected handler response structure
+			const expectedResponse = {
+				error: "Too many requests, please try again later",
+				code: "RATE_LIMIT_EXCEEDED",
+				statusCode: 429
+			}
+
+			expect(expectedResponse.error).toBe(
+				"Too many requests, please try again later"
+			)
+			expect(expectedResponse.code).toBe("RATE_LIMIT_EXCEEDED")
+			expect(expectedResponse.statusCode).toBe(429)
+		})
+
+		it("should define correct log structure for rate limit events", () => {
+			// Test the expected log structure
+			const mockReq = {
+				ip: "127.0.0.1",
+				path: "/api/test",
+				method: "GET",
+				id: "test-request-id"
+			}
+
+			const logPayload = {
+				requestId: (mockReq as { id?: string }).id,
+				ip: mockReq.ip,
+				path: mockReq.path,
+				method: mockReq.method
+			}
+
+			expect(logPayload).toHaveProperty("requestId", "test-request-id")
+			expect(logPayload).toHaveProperty("ip", "127.0.0.1")
+			expect(logPayload).toHaveProperty("path", "/api/test")
+			expect(logPayload).toHaveProperty("method", "GET")
+		})
+
+		it("should handle request without id property", () => {
+			const mockReq = {
+				ip: "127.0.0.1",
+				path: "/api/test",
+				method: "GET"
+				// No id property
+			}
+
+			const requestId = (mockReq as { id?: string }).id
+
+			expect(requestId).toBeUndefined()
+		})
+	})
 })

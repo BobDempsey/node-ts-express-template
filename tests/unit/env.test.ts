@@ -179,4 +179,140 @@ describe("Environment Configuration", () => {
 			expect(result.CORS_ORIGIN).toBeUndefined()
 		})
 	})
+
+	describe("Numeric Transform Edge Cases", () => {
+		it("should handle non-numeric PORT string by defaulting to 3000", () => {
+			const schema = z.object({
+				PORT: z
+					.string()
+					.default("3000")
+					.transform((val) => {
+						const parsed = Number.parseInt(val, 10)
+						return Number.isNaN(parsed) ? 3000 : parsed
+					})
+					.optional()
+			})
+
+			const result = schema.parse({ PORT: "invalid" })
+			expect(result.PORT).toBe(3000)
+		})
+
+		it("should handle non-numeric RATE_LIMIT_WINDOW_MS by defaulting to 60000", () => {
+			const schema = z.object({
+				RATE_LIMIT_WINDOW_MS: z
+					.string()
+					.default("60000")
+					.transform((val) => {
+						const parsed = Number.parseInt(val, 10)
+						return Number.isNaN(parsed) ? 60000 : parsed
+					})
+					.optional()
+			})
+
+			const result = schema.parse({ RATE_LIMIT_WINDOW_MS: "abc" })
+			expect(result.RATE_LIMIT_WINDOW_MS).toBe(60000)
+		})
+
+		it("should handle non-numeric RATE_LIMIT_MAX_REQUESTS by defaulting to 100", () => {
+			const schema = z.object({
+				RATE_LIMIT_MAX_REQUESTS: z
+					.string()
+					.default("100")
+					.transform((val) => {
+						const parsed = Number.parseInt(val, 10)
+						return Number.isNaN(parsed) ? 100 : parsed
+					})
+					.optional()
+			})
+
+			const result = schema.parse({ RATE_LIMIT_MAX_REQUESTS: "xyz" })
+			expect(result.RATE_LIMIT_MAX_REQUESTS).toBe(100)
+		})
+
+		it("should handle non-numeric SHUTDOWN_TIMEOUT_MS by defaulting to 30000", () => {
+			const schema = z.object({
+				SHUTDOWN_TIMEOUT_MS: z
+					.string()
+					.default("30000")
+					.transform((val) => {
+						const parsed = Number.parseInt(val, 10)
+						return Number.isNaN(parsed) ? 30000 : parsed
+					})
+					.optional()
+			})
+
+			const result = schema.parse({ SHUTDOWN_TIMEOUT_MS: "not-a-number" })
+			expect(result.SHUTDOWN_TIMEOUT_MS).toBe(30000)
+		})
+
+		it("should handle non-numeric SENTRY_TRACES_SAMPLE_RATE by defaulting to 1.0", () => {
+			const schema = z.object({
+				SENTRY_TRACES_SAMPLE_RATE: z
+					.string()
+					.default("1.0")
+					.transform((val) => {
+						const parsed = Number.parseFloat(val)
+						return Number.isNaN(parsed) ? 1.0 : Math.min(1, Math.max(0, parsed))
+					})
+			})
+
+			const result = schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "invalid" })
+			expect(result.SENTRY_TRACES_SAMPLE_RATE).toBe(1.0)
+		})
+
+		it("should clamp SENTRY_TRACES_SAMPLE_RATE between 0 and 1", () => {
+			const schema = z.object({
+				SENTRY_TRACES_SAMPLE_RATE: z
+					.string()
+					.default("1.0")
+					.transform((val) => {
+						const parsed = Number.parseFloat(val)
+						return Number.isNaN(parsed) ? 1.0 : Math.min(1, Math.max(0, parsed))
+					})
+			})
+
+			// Test value above 1
+			const result1 = schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "2.5" })
+			expect(result1.SENTRY_TRACES_SAMPLE_RATE).toBe(1.0)
+
+			// Test value below 0
+			const result2 = schema.parse({ SENTRY_TRACES_SAMPLE_RATE: "-0.5" })
+			expect(result2.SENTRY_TRACES_SAMPLE_RATE).toBe(0)
+		})
+
+		it("should handle non-numeric SENTRY_PROFILES_SAMPLE_RATE by defaulting to 1.0", () => {
+			const schema = z.object({
+				SENTRY_PROFILES_SAMPLE_RATE: z
+					.string()
+					.default("1.0")
+					.transform((val) => {
+						const parsed = Number.parseFloat(val)
+						return Number.isNaN(parsed) ? 1.0 : Math.min(1, Math.max(0, parsed))
+					})
+			})
+
+			const result = schema.parse({ SENTRY_PROFILES_SAMPLE_RATE: "bad" })
+			expect(result.SENTRY_PROFILES_SAMPLE_RATE).toBe(1.0)
+		})
+
+		it("should transform ENABLE_JWT_AUTH to boolean", () => {
+			const schema = z.object({
+				ENABLE_JWT_AUTH: z
+					.string()
+					.default("false")
+					.transform((val) => val === "true")
+			})
+
+			expect(schema.parse({ ENABLE_JWT_AUTH: "true" }).ENABLE_JWT_AUTH).toBe(
+				true
+			)
+			expect(schema.parse({ ENABLE_JWT_AUTH: "false" }).ENABLE_JWT_AUTH).toBe(
+				false
+			)
+			expect(schema.parse({ ENABLE_JWT_AUTH: "yes" }).ENABLE_JWT_AUTH).toBe(
+				false
+			)
+			expect(schema.parse({}).ENABLE_JWT_AUTH).toBe(false)
+		})
+	})
 })

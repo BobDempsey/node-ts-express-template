@@ -54,6 +54,67 @@ describe("API v1 Routes Integration Tests", () => {
 		})
 	})
 
+	describe("GET /api/v1/async-example", () => {
+		it("should respond with 200 status", async () => {
+			const response = await request(app).get("/api/v1/async-example")
+			expect(response.status).toBe(200)
+		})
+
+		it("should return JSON content type", async () => {
+			const response = await request(app).get("/api/v1/async-example")
+			expect(response.headers["content-type"]).toMatch(/application\/json/)
+		})
+
+		it("should return async example response in data envelope", async () => {
+			const response = await request(app).get("/api/v1/async-example")
+			expect(response.body).toHaveProperty("success", true)
+			expect(response.body).toHaveProperty("data")
+			expect(response.body).toHaveProperty("meta")
+			expect(response.body.data).toHaveProperty("message")
+			expect(response.body.data).toHaveProperty("version")
+			expect(response.body.data).toHaveProperty("description")
+			expect(response.body.data.message).toBe(
+				"This is an async endpoint example"
+			)
+			expect(response.body.data.version).toBe("v1")
+			expect(response.body.data.description).toBe(
+				"Wrapped with asyncHandler to catch promise rejections"
+			)
+		})
+
+		it("should return valid ISO timestamp in meta", async () => {
+			const response = await request(app).get("/api/v1/async-example")
+			const timestamp = new Date(response.body.meta.timestamp)
+			expect(timestamp.toISOString()).toBe(response.body.meta.timestamp)
+		})
+	})
+
+	describe("GET /api/v1/async-error-example", () => {
+		it("should respond with 500 status (intentional error)", async () => {
+			const response = await request(app).get("/api/v1/async-error-example")
+			expect(response.status).toBe(500)
+		})
+
+		it("should return JSON content type", async () => {
+			const response = await request(app).get("/api/v1/async-error-example")
+			expect(response.headers["content-type"]).toMatch(/application\/json/)
+		})
+
+		it("should return error response with correct structure", async () => {
+			const response = await request(app).get("/api/v1/async-error-example")
+			expect(response.body).toHaveProperty("success", false)
+			expect(response.body).toHaveProperty("error")
+			expect(response.body.error).toHaveProperty("code")
+			expect(response.body.error).toHaveProperty("statusCode", 500)
+		})
+
+		it("should demonstrate async error handling", async () => {
+			const response = await request(app).get("/api/v1/async-error-example")
+			// The error is caught by asyncHandler and passed to error middleware
+			expect(response.status).toBe(500)
+		})
+	})
+
 	describe("Security Headers on v1 Routes", () => {
 		it("should set security headers on /api/v1/", async () => {
 			const response = await request(app).get("/api/v1/")

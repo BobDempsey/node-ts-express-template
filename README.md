@@ -1865,6 +1865,39 @@ The project includes comprehensive testing with Jest and Supertest:
   - Test server utilities
   - Common test patterns
 
+#### Test Coverage
+
+The project maintains high test coverage. Run coverage reports with:
+
+```bash
+npm run test:coverage
+```
+
+**Coverage Summary:**
+
+| Category | Target | Description |
+|----------|--------|-------------|
+| Statements | 85%+ | Lines of code executed |
+| Branches | 70%+ | Decision paths covered |
+| Functions | 80%+ | Functions called |
+| Lines | 85%+ | Source lines covered |
+
+**Coverage Reports:**
+- **Terminal**: Summary displayed after running `npm run test:coverage`
+- **HTML Report**: Generated in `coverage/lcov-report/index.html` for detailed file-by-file analysis
+- **CI Integration**: Coverage uploaded to Codecov on each push (see CI/CD section)
+
+**Key Test Files:**
+
+| Test File | Coverage Area |
+|-----------|---------------|
+| `tests/unit/errors.test.ts` | Custom error classes |
+| `tests/unit/jwt.test.ts` | JWT token utilities |
+| `tests/unit/sentry.test.ts` | Sentry integration |
+| `tests/unit/user-service-stub.test.ts` | User service implementation |
+| `tests/integration/auth.test.ts` | Authentication flow |
+| `tests/integration/health.test.ts` | Health check endpoints |
+
 #### Writing Tests
 
 Create test files with `.test.ts` or `.spec.ts` extensions in the `tests/` directory:

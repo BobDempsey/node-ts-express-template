@@ -46,20 +46,28 @@ app.use(rateLimiter)
 if (env.ENABLE_JWT_AUTH) {
 	app.use(
 		requireAuth({
-			exclude: ["/health", "/ready", "/live", "/docs", "/api/v1/auth", "/"]
+			exclude: [
+				"/health",
+				"/ready",
+				"/live",
+				"/docs",
+				"/api/v1/auth/login",
+				"/api/v1/auth/refresh"
+			]
 		})
 	)
 }
+
+// Public root route (before auth-protected routes)
+app.get("/", (_req: Request, res: Response) => {
+	res.send(GREETING)
+})
 
 // API Documentation
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 // Routes
 app.use(routes)
-
-app.get("/", (_req: Request, res: Response) => {
-	res.send(GREETING)
-})
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
