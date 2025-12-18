@@ -37,6 +37,7 @@ Try the live demo at: [https://node-ts-express-template.onrender.com/](https://n
 - 🐳 **Docker Ready** - Multi-stage Dockerfile and docker-compose.yml included for containerized deployments
 - 🚦 **Rate Limiting** - Built-in request rate limiting with configurable limits and IP-based throttling
 - 📦 **API Response Envelope** - Standardized response utilities for consistent API responses
+- 🔭 **Sentry Integration** - Optional error tracking, performance monitoring, and profiling with Sentry
 - 🚢 **Production Ready** - Structured logging, error handling, and cloud-native features
 
 ## Quick Start
@@ -1667,7 +1668,6 @@ This is handled automatically in `src/middleware/error-handler.ts` based on `NOD
 
 **Recommended Additions:**
 - Response compression (gzip/brotli)
-- Request rate limiting
 - Database connection pooling
 - Redis caching layer
 - CDN for static assets
@@ -1689,6 +1689,77 @@ This is handled automatically in `src/middleware/error-handler.ts` based on `NOD
 - Error Tracking: Sentry, Rollbar, Bugsnag
 - Log Aggregation: CloudWatch, Datadog, ELK
 - Metrics: Prometheus, StatsD, CloudWatch Metrics
+
+### Sentry Error Tracking
+
+This template includes built-in Sentry integration for error tracking, performance monitoring, and profiling. Sentry is **optional** and only activates when you provide a DSN.
+
+**Enabling Sentry:**
+
+Set the `SENTRY_DSN` environment variable to enable Sentry:
+
+```bash
+# Required - enables Sentry
+SENTRY_DSN=https://your-key@sentry.io/project-id
+
+# Optional configuration
+SENTRY_ENVIRONMENT=production          # Defaults to NODE_ENV
+SENTRY_RELEASE=1.0.0                   # Version tag for releases
+SENTRY_TRACES_SAMPLE_RATE=1.0          # Performance monitoring (0.0-1.0)
+SENTRY_PROFILES_SAMPLE_RATE=1.0        # Profiling (0.0-1.0)
+```
+
+**Features:**
+
+- **Error Tracking** - Automatic capture of unhandled exceptions and rejections
+- **Performance Monitoring** - Request tracing and transaction monitoring
+- **Profiling** - CPU profiling for performance analysis
+- **Express Integration** - Automatic request/response instrumentation
+- **Sensitive Data Redaction** - Authorization headers and cookies are automatically redacted
+
+**Using Sentry Utilities:**
+
+The template provides utility functions in `src/lib/sentry.ts`:
+
+```typescript
+import { captureException, captureMessage, setUser, addBreadcrumb } from "@/lib/sentry"
+
+// Capture an error with context
+try {
+  await riskyOperation()
+} catch (error) {
+  captureException(error, { userId: "123", action: "riskyOperation" })
+}
+
+// Log a message to Sentry
+captureMessage("User completed onboarding", "info", { plan: "premium" })
+
+// Set user context for error tracking
+setUser({ id: "123", email: "user@example.com" })
+
+// Add breadcrumbs for debugging
+addBreadcrumb({
+  category: "auth",
+  message: "User logged in",
+  level: "info"
+})
+```
+
+**Graceful Shutdown:**
+
+Sentry events are automatically flushed during graceful shutdown. For manual control:
+
+```typescript
+import { flush, close } from "@/lib/sentry"
+
+// Flush pending events (e.g., before Lambda timeout)
+await flush(2000)
+
+// Close Sentry client
+await close(2000)
+```
+
+**Important:** The Sentry instrumentation module (`src/instrument.ts`) must be imported before all other modules in your entry point. This is already configured in the template.
 
 ### Other Commands
 
@@ -1915,14 +1986,6 @@ This project includes recommended VS Code extensions in [.vscode/extensions.json
 - **Jest** (`Orta.vscode-jest`) - Integrated Jest testing with inline test results and debugging
 - **Path Intellisense** (`christian-kohler.path-intellisense`) - Autocomplete for file paths in your code
 
-### Installing Extensions
-
-VS Code will automatically prompt you to install recommended extensions when you open the project. Alternatively, you can:
-
-1. Open the Extensions view (Cmd+Shift+X on macOS, Ctrl+Shift+X on Windows/Linux)
-2. Type `@recommended` in the search box
-3. Install the extensions listed under "Workspace Recommendations"
-
 ## Configuration
 
 ### TypeScript Configuration
@@ -2080,7 +2143,7 @@ To enable coverage reporting:
 3. Add `CODECOV_TOKEN` to your GitHub repository secrets
 4. Coverage reports will be automatically uploaded on each CI run
 
-If you don't want to use Codecov, the workflow will continue without failing.
+If you don't want to use Codecov, remove it from the test workflow in `.github/workflows/test.yml`.
 
 ## Scripts Explained
 
