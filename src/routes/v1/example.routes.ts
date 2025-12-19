@@ -1,6 +1,11 @@
-import { type Request, type Response, Router } from "express"
-import { GREETING } from "@/lib/constants"
-import { asyncHandler, sendSuccess } from "@/utils"
+import { Router } from "express"
+import { asyncHandler } from "@/utils"
+import {
+	getAsyncErrorExample,
+	getAsyncExample,
+	getExample,
+	getRoot
+} from "./controllers/example.controller"
 
 const router = Router()
 
@@ -21,9 +26,7 @@ const router = Router()
  *               type: string
  *               example: Hello, world!
  */
-router.get("/", (_req: Request, res: Response) => {
-	res.send(GREETING)
-})
+router.get("/", getRoot)
 
 /**
  * @openapi
@@ -51,12 +54,7 @@ router.get("/", (_req: Request, res: Response) => {
  *                   type: string
  *                   format: date-time
  */
-router.get("/example", (_req: Request, res: Response) => {
-	sendSuccess(res, {
-		message: "This is an example endpoint",
-		version: "v1"
-	})
-})
+router.get("/example", getExample)
 
 /**
  * @openapi
@@ -87,19 +85,7 @@ router.get("/example", (_req: Request, res: Response) => {
  *                   type: string
  *                   example: Wrapped with asyncHandler to catch promise rejections
  */
-router.get(
-	"/async-example",
-	asyncHandler(async (_req: Request, res: Response) => {
-		// Simulate an async operation (e.g., database query, API call)
-		const data = await Promise.resolve({
-			message: "This is an async endpoint example",
-			version: "v1",
-			description: "Wrapped with asyncHandler to catch promise rejections"
-		})
-
-		sendSuccess(res, data)
-	})
-)
+router.get("/async-example", asyncHandler(getAsyncExample))
 
 /**
  * @openapi
@@ -124,15 +110,6 @@ router.get(
  *                   type: integer
  *                   example: 500
  */
-router.get(
-	"/async-error-example",
-	asyncHandler(async (_req: Request, _res: Response) => {
-		// Simulate an async operation that throws an error
-		await Promise.resolve()
-
-		// This error will be caught by asyncHandler and passed to error middleware
-		throw new Error("Example async error - caught by asyncHandler")
-	})
-)
+router.get("/async-error-example", asyncHandler(getAsyncErrorExample))
 
 export default router
